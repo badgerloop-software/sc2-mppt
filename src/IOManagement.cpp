@@ -7,12 +7,12 @@
 volatile ArrayData arrayData[NUM_ARRAYS];
 
 struct ArrayPins {
-    uint8_t voltPin;            // don't need AnalogInMutexless, need pin only (use same type as pin)
-    INA281Driver currPin;      // keep, need to rewrite
+    uint8_t voltPin;
+    INA281Driver currPin;      // need to rewrite
     double outputPWM;
     double setPoint;
-    PID pidController;          // use new PID library (mismatch with constructor: Input, Output, Setpoint, etc.)
-    uint8_t pwmPin;             // use analogWrite/analogRead (missing period_us)
+    PID pidController;
+    uint8_t pwmPin;             // (missing period_us)
 };
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
@@ -32,9 +32,7 @@ Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
 
 
 // Misc controlled outputs. Default to nominal state
-Timeout ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, (ExternalCallbackPointer)&completeOVFaultReset);
-analogWrite(OV_FAULT_RST_PIN, 0);
-analogWrite(DISCHARGE_CAPS_PIN, 1);
+TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, (ExternalCallbackPointer)&completeOVFaultReset);
 
 // Pack charge current limit
 volatile float packSOC = 100;
@@ -58,8 +56,8 @@ void updateData() {
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // Update temperature mux selection at start for time to update, then read at end
         // Inputs corresponds to bits 0 and 1 of array number
-        analogWrite(PB_5, i & 0x1);
-        analogWrite(PB_4, i & 0x2);
+        digitalWrite(PB_5, i & 0x1);
+        digitalWrite(PB_4, i & 0x2);
         arrayData[i].voltage = analogRead(arrayPins[i].voltPin) * V_SCALE;
         arrayData[i].current = arrayPins[i].currPin.readCurrent();
         arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
@@ -79,7 +77,7 @@ void updateData() {
         }
     }
 
-    boostEnabled = analogRead(PB_7);
+    boostEnabled = digitalRead(PB_7);
     battVolt = analogRead(BATTERY_VOLT_PIN) * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
@@ -106,6 +104,14 @@ void initData(std::chrono::microseconds updatePeriod) {
         // arrayPins[i].pwmPin.period_us(PWM_PERIOD_US);                                    // ask Wilson
         
     }
+
+    pinMode(PB_7, INPUT);
+    pinMode(PB_5, OUTPUT);
+    pinMode(PB_4, OUTPUT);
+    pinMode(OV_FAULT_RST_PIN, OUTPUT);
+    pinMode(DISCHARGE_CAPS_PIN, OUTPUT);
+    digitalWrite(OV_FAULT_RST_PIN, LOW);
+    digitalWrite(DISCHARGE_CAPS_PIN, HIGH);
 }
 
 void resetPID() {
@@ -139,14 +145,14 @@ void setArrayVoltOut(double voltage, int array) {
     manual reset via button press
 */
 void completeOVFaultReset() {
-    analogWrite(OV_FAULT_RST_PIN, 0);
+    digitalWrite(OV_FAULT_RST_PIN, LOW);
 }
 
 void clearOVFaultReset(uint8_t value) {
-    analogWrite(OV_FAULT_RST_PIN, value);
+    digitalWrite(OV_FAULT_RST_PIN, value);
     ovFaultResetDelayer.start();
 }
 
 void setCapDischarge(uint8_t value) {
-    analogWrite(DISCHARGE_CAPS_PIN, value);
+    digitalWrite(DISCHARGE_CAPS_PIN, value);
 }
