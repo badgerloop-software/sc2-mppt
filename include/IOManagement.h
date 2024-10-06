@@ -1,19 +1,19 @@
 #ifndef __IO_MANAGEMENT_H__
 #define __IO_MANAGEMENT_H__
 
-#include "mbed.h"
+// #include "mbed.h"
 #include "const.h"
-#include "FastPWM.h"
+#include "PID_v1.h"
+#include "Ticker.h"
+#include "TimeoutCallback.h"
 #include "INA281.h"
-#include "mutexless_analog.h"
-#include "PID.h"
 #include "thermistor.h"
 
 
 // Solar array and battery data
 typedef struct ArrayData {
     double dutyCycle = 0;
-    float voltage = 0;
+    double voltage = 0;
     float current = 0;
     float curPower = 0;
     float temp = 0;
@@ -53,10 +53,10 @@ void resetArrayPID(int array);
 
 // Sets voltage output for all arrays
 // Value will be capped if outside V_MIN or V_MAX specified in const.h
-void setVoltOut(float voltage);
+void setVoltOut(double voltage);
 
 // Sets voltage output for specified array
-void setArrayVoltOut(float voltage, int array);
+void setArrayVoltOut(double voltage, int array);
 
 // Sets clearing of OV fault
 void clearOVFaultReset(uint8_t value);

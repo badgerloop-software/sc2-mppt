@@ -4,7 +4,7 @@
 
 
 // ------------- IO INPUT CONSTANTS -------------
-#define IO_UPDATE_PERIOD 100
+#define IO_UPDATE_PERIOD 100    // ms
 #define NUM_ARRAYS 3
 
 // Analog input modifiers (derived from circuitry)
@@ -101,7 +101,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define CAN_TX PA_12
 
 // Duration undervoltage fault reset asserted on command 
-#define OV_FAULT_RST_PERIOD 250ms
+#define OV_FAULT_RST_PERIOD 250     // ms
 
 
 
