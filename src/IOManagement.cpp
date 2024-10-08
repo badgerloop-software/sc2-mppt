@@ -102,7 +102,21 @@ void initData(std::chrono::microseconds updatePeriod) {
         arrayPins[i].pidController.SetSampleTime(IO_UPDATE_PERIOD);
 
         // arrayPins[i].pwmPin.period_us(PWM_PERIOD_US);                                    // ask Wilson
-        
+
+        // PWM Hardware Timer
+        PinName pinNameToUse = digitalPinToPinName(arrayPins[i].pwmPin);
+        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pinNameToUse, PinMap_PWM);
+        if (Instance != nullptr)
+        {
+            HardwareTimer *MyTim = new HardwareTimer(Instance);
+            MyTim->setPWM(  channel,                        // Arduino channel [1..4], unsure what to use
+                            pinNameToUse,                       // pin used
+                            1/(PWM_PERIOD_US * pow(10, -6)),    // frequency
+                            0,                                  // duty cycle
+                            PeriodCallback[index]           // timer period callback (timer rollover upon update event) (unsure)
+                                                            // timer compare callback (extra parameter in constructor, not used in example)
+                        );
+        }
     }
 
     pinMode(PB_7, INPUT);

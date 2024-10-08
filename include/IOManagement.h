@@ -4,6 +4,7 @@
 // #include "mbed.h"
 #include "const.h"
 #include "PID_v1.h"
+#include "STM32_PWM.h"
 #include "Ticker.h"
 #include "TimeoutCallback.h"
 #include "INA281.h"
