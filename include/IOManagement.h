@@ -1,12 +1,10 @@
 #ifndef __IO_MANAGEMENT_H__
 #define __IO_MANAGEMENT_H__
 
-#include "mbed.h"
 #include "const.h"
 #include "FastPWM.h"
 #include "INA281.h"
-#include "mutexless_analog.h"
-#include "PID.h"
+#include "PID_v1.h"
 #include "thermistor.h"
 
 
