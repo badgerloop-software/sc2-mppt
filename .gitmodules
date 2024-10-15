@@ -1,0 +1,3 @@
+[submodule "embedded-pio"]
+	path = embedded-pio
+	url = git@github.com:badgerloop-software/embedded-pio.git
