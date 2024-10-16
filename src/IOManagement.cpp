@@ -92,7 +92,7 @@ void updateData() {
 }
 
 
-void initData(std::chrono::microseconds updatePeriod) {
+void initData(int updatePeriod) {
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // arrayPins[i].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);

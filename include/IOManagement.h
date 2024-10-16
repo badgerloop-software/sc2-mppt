@@ -1,13 +1,11 @@
 #ifndef __IO_MANAGEMENT_H__
 #define __IO_MANAGEMENT_H__
 
-// #include "mbed.h"
 #include "const.h"
 #include "PID_v1.h"
-#include "STM32_PWM.h"
 #include "Ticker.h"
 #include "TimeoutCallback.h"
-#include "INA281.h"
+#include "ina281.h"
 #include "thermistor.h"
 
 
@@ -44,7 +42,8 @@ extern volatile float outputCurrent;
 
 // Sets up automatic updating of IO at specified period
 // New input data will automatically be written to arrayData
-void initData(std::chrono::microseconds updatePeriod);
+// updatePeriod is in microseconds
+void initData(int updatePeriod);
 
 // Resets the duty cycle PID loops
 void resetPID();
