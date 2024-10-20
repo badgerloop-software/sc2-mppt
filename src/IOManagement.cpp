@@ -120,7 +120,7 @@ void initData(int updatePeriod) {
         if (Instance != nullptr)
         {
             HardwareTimer *MyTim = new HardwareTimer(Instance);
-            MyTim->setPWM(  channel,                        // Arduino channel [1..4], unsure what to use
+            MyTim->setPWM(  arrayPins[i].channel,                        // Arduino channel [1..4], unsure what to use
                             arrayPins[i].pwmPin,                       // pin used
                             PWM_FREQ,                       // frequency
                             0                                  // duty cycle
