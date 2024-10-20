@@ -39,6 +39,12 @@ volatile float packSOC = 100;
 volatile float packChargeCurrentLimit = 10;
 volatile float packCurrent = 0; 
 
+//Arduino channel to use
+uint32_t channel;
+
+// Frequency of PWM signal
+#define PWM_FREQ 76923
+
 // Current storage
 volatile float outputCurrent = 0;
 
@@ -68,12 +74,24 @@ void updateData() {
     }
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
+        PinName pinNameToUse = digitalPinToPinName(arrayPins[i].pwmPin);
+        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pinNameToUse, PinMap_PWM);
+        if (Instance == nullptr){
+            // Error
+            continue;
+        }
+        HardwareTimer *MyTim = new HardwareTimer(Instance);
+        channel = STM_PIN_CHANNEL(pinmap_function(pinNameToUse, PinMap_PWM));
+
         if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            analogWrite(arrayPins[i].pwmPin, 0);
+            MyTim->setPWM(channel, pinNameToUse, PWM_FREQ, 0);
+            //analogWrite(arrayPins[i].pwmPin, 0); Old code
         
         } else {
             arrayPins[i].pidController.Compute();
-            analogWrite(arrayPins[i].pwmPin, arrayPins[i].outputPWM);
+            MyTim->setPWM(channel, pinNameToUse, PWM_FREQ, arrayPins[i].outputPWM);
+            
+            //analogWrite(arrayPins[i].pwmPin, arrayPins[i].outputPWM); Old code
         }
     }
 
@@ -106,15 +124,14 @@ void initData(int updatePeriod) {
         // PWM Hardware Timer
         PinName pinNameToUse = digitalPinToPinName(arrayPins[i].pwmPin);
         TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pinNameToUse, PinMap_PWM);
+        channel = STM_PIN_CHANNEL(pinmap_function(pinNameToUse, PinMap_PWM));
         if (Instance != nullptr)
         {
             HardwareTimer *MyTim = new HardwareTimer(Instance);
             MyTim->setPWM(  channel,                        // Arduino channel [1..4], unsure what to use
                             pinNameToUse,                       // pin used
-                            1/(PWM_PERIOD_US * pow(10, -6)),    // frequency
-                            0,                                  // duty cycle
-                            PeriodCallback[index]           // timer period callback (timer rollover upon update event) (unsure)
-                                                            // timer compare callback (extra parameter in constructor, not used in example)
+                            PWM_FREQ,                       // frequency
+                            0                                  // duty cycle
                         );
         }
     }
