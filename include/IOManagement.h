@@ -2,7 +2,6 @@
 #define __IO_MANAGEMENT_H__
 
 #include "const.h"
-#include "FastPWM.h"
 #include "INA281.h"
 #include "PID_v1.h"
 #include "thermistor.h"
