@@ -31,9 +31,6 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define PWM_OUT_2 PA_10
 #define PWM_OUT_3 PA_8
 
-// Frequency of PWM signal
-#define PWM_FREQ 76923
-
 // CAN triggered outputs
 #define OV_FAULT_RST_PIN PB_6
 #define DISCHARGE_CAPS_PIN PB_1
@@ -55,6 +52,9 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define PWM_DUTY_MIN 0
 #define PWM_DUTY_MAX 0.8
 #define PWM_PERIOD_US 13
+
+// Frequency of PWM signal
+#define PWM_FREQ 76923
 
 // ------------- MPPT ALGO CONSTANTS -------------
 // Initial voltage
