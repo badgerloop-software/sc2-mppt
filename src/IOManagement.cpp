@@ -6,19 +6,24 @@
 // Solar array voltage, current, and PWM pins (controlled by PID) and storage variable
 volatile ArrayData arrayData[NUM_ARRAYS];
 
+//Arduino channel to use
+uint32_t channel;
+
+
 struct ArrayPins {
     uint8_t voltPin;
     INA281Driver currPin;      // need to rewrite
     double outputPWM;
     double setPoint;
     PID pidController;
-    uint8_t pwmPin;             // (missing period_us)
+    PinName pwmPin;             // (missing period_us)
+    uint32_t channel;
 };
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
-    {(uint8_t)VOLT_PIN_1, INA281Driver(CURR_PIN_1, INA_SHUNT_R), 0, 0, PID(&arrayData[0].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), (uint8_t)PWM_OUT_1},
-    {(uint8_t)VOLT_PIN_2, INA281Driver(CURR_PIN_2, INA_SHUNT_R), 0, 0, PID(&arrayData[1].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), (uint8_t)PWM_OUT_2},
-    {(uint8_t)VOLT_PIN_3, INA281Driver(CURR_PIN_3, INA_SHUNT_R), 0, 0, PID(&arrayData[2].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), (uint8_t)PWM_OUT_3}
+    {(uint8_t)VOLT_PIN_1, INA281Driver(CURR_PIN_1, INA_SHUNT_R), 0, 0, PID(&arrayData[0].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_1, STM_PIN_CHANNEL(pinmap_function(PWM_OUT_1, PinMap_PWM))},
+    {(uint8_t)VOLT_PIN_2, INA281Driver(CURR_PIN_2, INA_SHUNT_R), 0, 0, PID(&arrayData[1].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_2, STM_PIN_CHANNEL(pinmap_function(PWM_OUT_2, PinMap_PWM))},
+    {(uint8_t)VOLT_PIN_3, INA281Driver(CURR_PIN_3, INA_SHUNT_R), 0, 0, PID(&arrayData[2].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_3, STM_PIN_CHANNEL(pinmap_function(PWM_OUT_3, PinMap_PWM))}
 };
 
 // Enables PWM-Voltage converters
@@ -38,12 +43,6 @@ TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, (Externa
 volatile float packSOC = 100;
 volatile float packChargeCurrentLimit = 10;
 volatile float packCurrent = 0; 
-
-//Arduino channel to use
-uint32_t channel;
-
-// Frequency of PWM signal
-#define PWM_FREQ 76923
 
 // Current storage
 volatile float outputCurrent = 0;
@@ -74,22 +73,20 @@ void updateData() {
     }
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        PinName pinNameToUse = digitalPinToPinName(arrayPins[i].pwmPin);
-        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pinNameToUse, PinMap_PWM);
+        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(arrayPins[i].pwmPin, PinMap_PWM);
         if (Instance == nullptr){
             // Error
             continue;
         }
         HardwareTimer *MyTim = new HardwareTimer(Instance);
-        channel = STM_PIN_CHANNEL(pinmap_function(pinNameToUse, PinMap_PWM));
 
         if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            MyTim->setPWM(channel, pinNameToUse, PWM_FREQ, 0);
+            MyTim->setPWM(channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
             //analogWrite(arrayPins[i].pwmPin, 0); Old code
         
         } else {
             arrayPins[i].pidController.Compute();
-            MyTim->setPWM(channel, pinNameToUse, PWM_FREQ, arrayPins[i].outputPWM);
+            MyTim->setPWM(channel, arrayPins[i].pwmPin, PWM_FREQ, arrayPins[i].outputPWM);
             
             //analogWrite(arrayPins[i].pwmPin, arrayPins[i].outputPWM); Old code
         }
@@ -122,14 +119,12 @@ void initData(int updatePeriod) {
         // arrayPins[i].pwmPin.period_us(PWM_PERIOD_US);                                    // ask Wilson
 
         // PWM Hardware Timer
-        PinName pinNameToUse = digitalPinToPinName(arrayPins[i].pwmPin);
-        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pinNameToUse, PinMap_PWM);
-        channel = STM_PIN_CHANNEL(pinmap_function(pinNameToUse, PinMap_PWM));
+        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(arrayPins[i].pwmPin, PinMap_PWM);
         if (Instance != nullptr)
         {
             HardwareTimer *MyTim = new HardwareTimer(Instance);
             MyTim->setPWM(  channel,                        // Arduino channel [1..4], unsure what to use
-                            pinNameToUse,                       // pin used
+                            arrayPins[i].pwmPin,                       // pin used
                             PWM_FREQ,                       // frequency
                             0                                  // duty cycle
                         );
