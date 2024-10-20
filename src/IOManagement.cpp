@@ -6,9 +6,6 @@
 // Solar array voltage, current, and PWM pins (controlled by PID) and storage variable
 volatile ArrayData arrayData[NUM_ARRAYS];
 
-//Arduino channel to use
-uint32_t channel;
-
 
 struct ArrayPins {
     uint8_t voltPin;
@@ -17,7 +14,7 @@ struct ArrayPins {
     double setPoint;
     PID pidController;
     PinName pwmPin;             // (missing period_us)
-    uint32_t channel;
+    uint32_t channel;           //Arduino channel to use
 };
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
@@ -81,12 +78,12 @@ void updateData() {
         HardwareTimer *MyTim = new HardwareTimer(Instance);
 
         if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            MyTim->setPWM(channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
+            MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
             //analogWrite(arrayPins[i].pwmPin, 0); Old code
         
         } else {
             arrayPins[i].pidController.Compute();
-            MyTim->setPWM(channel, arrayPins[i].pwmPin, PWM_FREQ, arrayPins[i].outputPWM);
+            MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayPins[i].outputPWM);
             
             //analogWrite(arrayPins[i].pwmPin, arrayPins[i].outputPWM); Old code
         }
