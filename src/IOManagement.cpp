@@ -10,17 +10,15 @@ volatile ArrayData arrayData[NUM_ARRAYS];
 struct ArrayPins {
     uint8_t voltPin;
     INA281Driver currPin;      // need to rewrite
-    double outputPWM;
-    double setPoint;
     PID pidController;
     PinName pwmPin;             // (missing period_us)
     uint32_t channel;           //Arduino channel to use
 };
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
-    {(uint8_t)VOLT_PIN_1, INA281Driver(CURR_PIN_1, INA_SHUNT_R), 0, 0, PID(&arrayData[0].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_1, STM_PIN_CHANNEL(pinmap_function(PWM_OUT_1, PinMap_PWM))},
-    {(uint8_t)VOLT_PIN_2, INA281Driver(CURR_PIN_2, INA_SHUNT_R), 0, 0, PID(&arrayData[1].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_2, STM_PIN_CHANNEL(pinmap_function(PWM_OUT_2, PinMap_PWM))},
-    {(uint8_t)VOLT_PIN_3, INA281Driver(CURR_PIN_3, INA_SHUNT_R), 0, 0, PID(&arrayData[2].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_3, STM_PIN_CHANNEL(pinmap_function(PWM_OUT_3, PinMap_PWM))}
+    {(uint8_t)VOLT_PIN_1, INA281Driver(CURR_PIN_1, INA_SHUNT_R), PID(&arrayData[0].voltage, &arrayData[0].outputPWM, &arrayData[0].setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_1},
+    {(uint8_t)VOLT_PIN_2, INA281Driver(CURR_PIN_2, INA_SHUNT_R), PID(&arrayData[1].voltage, &arrayData[1].outputPWM, &arrayData[1].setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_2},
+    {(uint8_t)VOLT_PIN_3, INA281Driver(CURR_PIN_3, INA_SHUNT_R), PID(&arrayData[2].voltage, &arrayData[2].outputPWM, &arrayData[2].setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_3}
 };
 
 // Enables PWM-Voltage converters
@@ -34,7 +32,8 @@ Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
 
 
 // Misc controlled outputs. Default to nominal state
-TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, (ExternalCallbackPointer)&completeOVFaultReset);
+void completeOVFaultReset();
+TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &completeOVFaultReset);
 
 // Pack charge current limit
 volatile float packSOC = 100;
@@ -48,8 +47,8 @@ volatile float outputCurrent = 0;
 volatile ChargeMode chargeMode = ChargeMode::CONST_CURR;
 
 // Ticker to poll input readings at fixed rate
+void updateData();
 Ticker dataUpdater(updateData, IO_UPDATE_PERIOD, 0, MICROS);
-
 
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
@@ -58,8 +57,8 @@ void updateData() {
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // Update temperature mux selection at start for time to update, then read at end
         // Inputs corresponds to bits 0 and 1 of array number
-        digitalWrite(PB_5, i & 0x1);
-        digitalWrite(PB_4, i & 0x2);
+        digitalWrite(THERM_MUX_SEL_0, i & 0x1);
+        digitalWrite(THERM_MUX_SEL_1, i & 0x2);
         arrayData[i].voltage = analogRead(arrayPins[i].voltPin) * V_SCALE;
         arrayData[i].current = arrayPins[i].currPin.readCurrent();
         arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
@@ -83,13 +82,11 @@ void updateData() {
         
         } else {
             arrayPins[i].pidController.Compute();
-            MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayPins[i].outputPWM);
-            
-            //analogWrite(arrayPins[i].pwmPin, arrayPins[i].outputPWM); Old code
+            MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].outputPWM);
         }
     }
 
-    boostEnabled = digitalRead(PB_7);
+    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
     battVolt = analogRead(BATTERY_VOLT_PIN) * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
@@ -103,17 +100,17 @@ void updateData() {
     */
 }
 
+void initPID(int array) {
+   arrayPins[array].pidController.SetOutputLimits(PWM_DUTY_MIN, PWM_DUTY_MAX);
+   arrayPins[array].pidController.SetMode(1);                                              // Auto Mode
+   arrayData[array].setPoint = INIT_VOLT;
+   arrayPins[array].pidController.SetSampleTime(IO_UPDATE_PERIOD);
+}
 
 void initData(int updatePeriod) {
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        // arrayPins[i].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);
-        arrayPins[i].pidController.SetOutputLimits(PWM_DUTY_MIN, PWM_DUTY_MAX);
-        arrayPins[i].pidController.SetMode(1);                                              // Auto Mode
-        arrayPins[i].setPoint = INIT_VOLT;
-        arrayPins[i].pidController.SetSampleTime(IO_UPDATE_PERIOD);
-
-        // arrayPins[i].pwmPin.period_us(PWM_PERIOD_US);                                    // ask Wilson
+        initPID(i);
 
         // PWM Hardware Timer
         TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(arrayPins[i].pwmPin, PinMap_PWM);
@@ -127,10 +124,11 @@ void initData(int updatePeriod) {
                         );
         }
     }
-
-    pinMode(PB_7, INPUT);
-    pinMode(PB_5, OUTPUT);
-    pinMode(PB_4, OUTPUT);
+    
+    // initializing pins
+    pinMode(BOOST_ENABLED_PIN, INPUT);
+    pinMode(THERM_MUX_SEL_0, OUTPUT);
+    pinMode(THERM_MUX_SEL_1, OUTPUT);
     pinMode(OV_FAULT_RST_PIN, OUTPUT);
     pinMode(DISCHARGE_CAPS_PIN, OUTPUT);
     digitalWrite(OV_FAULT_RST_PIN, LOW);
@@ -140,27 +138,27 @@ void initData(int updatePeriod) {
 void resetPID() {
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // arrayPins[i].pidController.reset();
-        arrayPins[i].pidController = PID(&arrayData[i].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1);
-        initData();
+        arrayPins[i].pidController = PID(&arrayData[i].voltage, &arrayData[i].outputPWM, &arrayData[i].setPoint, P_TERM, I_TERM, D_TERM, 1);
+        initPID(i);
     }
 }
 
 void resetArrayPID(int array) {
     // arrayPins[array].pidController.reset();
-    arrayPins[array].pidController = PID(&arrayData[array].voltage, &outputPWM, &setPoint, P_TERM, I_TERM, D_TERM, 1);
-    initData();
+    arrayPins[array].pidController = PID(&arrayData[array].voltage, &arrayData[array].outputPWM, &arrayData[array].setPoint, P_TERM, I_TERM, D_TERM, 1);
+    initPID(array);
 }
 
 void setVoltOut(double voltage) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        arrayPins[i].setPoint = voltage;
+        arrayData[i].setPoint = voltage;
     }
 }
 
 void setArrayVoltOut(double voltage, int array) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
-    arrayPins[array].setPoint = voltage;
+    arrayData[array].setPoint = voltage;
 }
 
 /**
