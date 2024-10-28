@@ -2,7 +2,7 @@
 #define __IO_MANAGEMENT_H__
 
 #include "const.h"
-#include "PID_v1.h"
+#include "pid.h"
 #include "Ticker.h"
 #include "TimeoutCallback.h"
 #include "ina281.h"
@@ -44,8 +44,7 @@ extern volatile float outputCurrent;
 
 // Sets up automatic updating of IO at specified period
 // New input data will automatically be written to arrayData
-// updatePeriod is in microseconds
-void initData(int updatePeriod);
+void initData();
 
 // Resets the duty cycle PID loops
 void resetPID();

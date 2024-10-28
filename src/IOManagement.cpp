@@ -1,54 +1,59 @@
 #include "IOManagement.h"
 #include <array>
 
-// TODO: PID, TimeOut, Thermistor, pwm
-
 // Solar array voltage, current, and PWM pins (controlled by PID) and storage variable
 volatile ArrayData arrayData[NUM_ARRAYS];
 
-
 struct ArrayPins {
-    uint8_t voltPin;
-    INA281Driver currPin;      // need to rewrite
+    PinName voltPin;
+    INA281Driver currPin;      
     PID pidController;
-    PinName pwmPin;             // (missing period_us)
-    uint32_t channel;           //Arduino channel to use
+    PinName pwmPin;             
+    uint32_t channel;               // channel to use for PWM
+    HardwareTimer *pwmTimer;        // timer to set PWM output 
 };
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
-    {(uint8_t)VOLT_PIN_1, INA281Driver(CURR_PIN_1, INA_SHUNT_R), PID(&arrayData[0].voltage, &arrayData[0].outputPWM, &arrayData[0].setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_1},
-    {(uint8_t)VOLT_PIN_2, INA281Driver(CURR_PIN_2, INA_SHUNT_R), PID(&arrayData[1].voltage, &arrayData[1].outputPWM, &arrayData[1].setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_2},
-    {(uint8_t)VOLT_PIN_3, INA281Driver(CURR_PIN_3, INA_SHUNT_R), PID(&arrayData[2].voltage, &arrayData[2].outputPWM, &arrayData[2].setPoint, P_TERM, I_TERM, D_TERM, 1), PWM_OUT_3}
+    {
+        VOLT_PIN_1, 
+        INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD/1000), 
+        PWM_OUT_1
+    },
+    {
+        VOLT_PIN_2, 
+        INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD/1000), 
+        PWM_OUT_2
+    },
+    {
+        VOLT_PIN_3, 
+        INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD/1000), 
+        PWM_OUT_3
+    }
 };
 
-// Enables PWM-Voltage converters
-volatile bool boostEnabled;
-
-// Battery voltage pin and storage
-volatile float battVolt;
-
-// Temperature reading pins (single ADC, select thermistor via multiplexer)
-Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
-
-
-// Misc controlled outputs. Default to nominal state
-void completeOVFaultReset();
-TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &completeOVFaultReset);
+volatile bool boostEnabled; // Enables PWM-Voltage converters
+volatile float battVolt; // Battery voltage pin and storage
+volatile ChargeMode chargeMode = ChargeMode::CONST_CURR; // Charging algorithm mode
 
 // Pack charge current limit
 volatile float packSOC = 100;
 volatile float packChargeCurrentLimit = 10;
 volatile float packCurrent = 0; 
+volatile float outputCurrent = 0; 
 
-// Current storage
-volatile float outputCurrent = 0;
+// Temperature reading pins (single ADC, select thermistor via multiplexer)
+Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
 
-// Charging algorithm mode
-volatile ChargeMode chargeMode = ChargeMode::CONST_CURR;
+// Misc controlled outputs. Default to nominal state
+void completeOVFaultReset();
+TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &completeOVFaultReset);
 
 // Ticker to poll input readings at fixed rate
 void updateData();
-Ticker dataUpdater(updateData, IO_UPDATE_PERIOD, 0, MICROS);
+Ticker dataUpdater(updateData, IO_UPDATE_PERIOD, 0, MILLIS);
 
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
@@ -107,25 +112,19 @@ void initPID(int array) {
    arrayPins[array].pidController.SetSampleTime(IO_UPDATE_PERIOD);
 }
 
-void initData(int updatePeriod) {
+void initData() {
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
         initPID(i);
 
-        // PWM Hardware Timer
+        // Initialize PWM Hardware Timer ONCE 
         TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(arrayPins[i].pwmPin, PinMap_PWM);
-        if (Instance != nullptr)
-        {
-            HardwareTimer *MyTim = new HardwareTimer(Instance);
-            MyTim->setPWM(  arrayPins[i].channel,                        // Arduino channel [1..4], unsure what to use
-                            arrayPins[i].pwmPin,                       // pin used
-                            PWM_FREQ,                       // frequency
-                            0                                  // duty cycle
-                        );
-        }
+        arrayPins[i].pwmTimer = new HardwareTimer(Instance);
+        arrayPins[i].channel = STM_PIN_CHANNEL(pinmap_function(arrayPins[i].pwmPin, PinMap_PWM));
+        arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
     }
     
-    // initializing pins
+    // initialize digital pins
     pinMode(BOOST_ENABLED_PIN, INPUT);
     pinMode(THERM_MUX_SEL_0, OUTPUT);
     pinMode(THERM_MUX_SEL_1, OUTPUT);
