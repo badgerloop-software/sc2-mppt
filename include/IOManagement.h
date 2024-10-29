@@ -2,10 +2,16 @@
 #define __IO_MANAGEMENT_H__
 
 #include "const.h"
+<<<<<<< HEAD
 #include "PID_v1.h"
 #include "Ticker.h"
 #include "TimeoutCallback.h"
 #include "ina281.h"
+=======
+#include "FastPWM.h"
+#include "INA281.h"
+#include "PID_v1.h"
+>>>>>>> 3018649 (Added submodules)
 #include "thermistor.h"
 
 
