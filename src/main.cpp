@@ -62,7 +62,7 @@ void setup() {
 
 void loop() {
   #if DEBUG_PRINT == 3
-    wait_us(100000); // 0.1 sec
+    delay(100); // 0.1 sec
     debugPrint();
   #elif DEBUG_PRINT == 1
     // Display digital and analog values every second (for testing) 
