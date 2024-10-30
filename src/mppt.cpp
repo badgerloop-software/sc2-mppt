@@ -1,6 +1,6 @@
 #include "mppt.h"
 
-
+void mpptUpdate();
 Ticker mpptUpdater(mpptUpdate, MPPT_UPDATE_PERIOD, 0, MILLIS);
 volatile float targetVoltage[NUM_ARRAYS] = {INIT_VOLT, INIT_VOLT, INIT_VOLT};
 volatile float targetVoltage_C[NUM_ARRAYS] = {INIT_VOLT, INIT_VOLT, INIT_VOLT};

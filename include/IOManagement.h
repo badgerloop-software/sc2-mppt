@@ -2,7 +2,7 @@
 #define __IO_MANAGEMENT_H__
 
 #include "const.h"
-#include "PID_v1.h"
+#include "pid.h"
 #include "Ticker.h"
 #include "TimeoutCallback.h"
 #include "ina281.h"
@@ -16,6 +16,8 @@ typedef struct ArrayData {
     float current = 0;
     float curPower = 0;
     float temp = 0;
+    double outputPWM = 0;
+    double setPoint = 0;
 } ArrayData;
 
 extern volatile ArrayData arrayData[NUM_ARRAYS];
@@ -42,8 +44,7 @@ extern volatile float outputCurrent;
 
 // Sets up automatic updating of IO at specified period
 // New input data will automatically be written to arrayData
-// updatePeriod is in microseconds
-void initData(int updatePeriod);
+void initData();
 
 // Resets the duty cycle PID loops
 void resetPID();

@@ -26,6 +26,13 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // Input pin to get battery voltage
 #define BATTERY_VOLT_PIN PB_0
 
+// Output pins for selecting thermistor via multiplexer
+#define THERM_MUX_SEL_1 PB_4
+#define THERM_MUX_SEL_0 PB_5
+
+// Input pin for enabling boost
+#define BOOST_ENABLED_PIN PB_7
+
 // Output pins for voltage control of arrays via PWM
 #define PWM_OUT_1 PA_9
 #define PWM_OUT_2 PA_10
@@ -52,6 +59,9 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define PWM_DUTY_MIN 0
 #define PWM_DUTY_MAX 0.8
 #define PWM_PERIOD_US 13
+
+// Frequency of PWM signal
+#define PWM_FREQ 76923
 
 // ------------- MPPT ALGO CONSTANTS -------------
 // Initial voltage
@@ -93,8 +103,8 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // 3 for showing array 0 values only
 #define DEBUG_PRINT 1
 
-// How fast to transmit data over CAN (and debug prints if on)
-#define DATA_SEND_PERIOD 50ms
+// How fast to transmit data over CAN in ms (and debug prints if on) 
+#define DATA_SEND_PERIOD 50
 
 // CAN Pins
 #define CAN_RX PA_11
