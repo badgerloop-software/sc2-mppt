@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include "canMppt.h"
 #include "const.h"
 #include "IOManagement.h"
