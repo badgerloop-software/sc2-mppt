@@ -17,19 +17,19 @@ ArrayPins arrayPins[NUM_ARRAYS] = {
     {
         VOLT_PIN_1, 
         INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD/1000), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD.count() / 1000), 
         PWM_OUT_1
     },
     {
         VOLT_PIN_2, 
         INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD/1000), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD.count() / 1000), 
         PWM_OUT_2
     },
     {
         VOLT_PIN_3, 
         INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD/1000), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD.count() / 1000), 
         PWM_OUT_3
     }
 };
@@ -53,7 +53,8 @@ TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &complet
 
 // Ticker to poll input readings at fixed rate
 void updateData();
-Ticker dataUpdater(updateData, IO_UPDATE_PERIOD, 0, MILLIS);
+// Ticker dataUpdater(updateData, IO_UPDATE_PERIOD, 0, MILLIS);
+STM32Timer dataUpdater(TIM2);
 
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
@@ -86,7 +87,7 @@ void updateData() {
             //analogWrite(arrayPins[i].pwmPin, 0); Old code
         
         } else {
-            arrayPins[i].pidController.Compute();
+            arrayPins[i].pidController.compute();
             MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].outputPWM);
         }
     }
@@ -106,13 +107,17 @@ void updateData() {
 }
 
 void initPID(int array) {
-   arrayPins[array].pidController.SetOutputLimits(PWM_DUTY_MIN, PWM_DUTY_MAX);
-   arrayPins[array].pidController.SetMode(1);                                              // Auto Mode
-   arrayData[array].setPoint = INIT_VOLT;
-   arrayPins[array].pidController.SetSampleTime(IO_UPDATE_PERIOD);
+    arrayPins[array].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);
+    arrayPins[array].pidController.setOutputLimits(PWM_DUTY_MIN, PWM_DUTY_MAX);
+    arrayPins[array].pidController.setMode(AUTO_MODE);
+    arrayData[array].pidController.setSetPoint(INIT_VOLT);
+    // arrayPins[array].pidController.setSampleTime(IO_UPDATE_PERIOD);
 }
 
 void initData() {
+    // Auto updating IO
+    dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData);
+
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
         initPID(i);
@@ -136,28 +141,24 @@ void initData() {
 
 void resetPID() {
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        // arrayPins[i].pidController.reset();
-        arrayPins[i].pidController = PID(&arrayData[i].voltage, &arrayData[i].outputPWM, &arrayData[i].setPoint, P_TERM, I_TERM, D_TERM, 1);
-        initPID(i);
+        arrayPins[i].pidController.reset();
     }
 }
 
 void resetArrayPID(int array) {
-    // arrayPins[array].pidController.reset();
-    arrayPins[array].pidController = PID(&arrayData[array].voltage, &arrayData[array].outputPWM, &arrayData[array].setPoint, P_TERM, I_TERM, D_TERM, 1);
-    initPID(array);
+    arrayPins[array].pidController.reset();
 }
 
 void setVoltOut(double voltage) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        arrayData[i].setPoint = voltage;
+        arrayPins[i].pidController.setSetPoint(voltage);
     }
 }
 
 void setArrayVoltOut(double voltage, int array) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
-    arrayData[array].setPoint = voltage;
+    arrayPins[array].pidController.setSetPoint(voltage);
 }
 
 /**

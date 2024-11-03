@@ -1,7 +1,8 @@
 #include "mppt.h"
 
 void mpptUpdate();
-Ticker mpptUpdater(mpptUpdate, MPPT_UPDATE_PERIOD, 0, MILLIS);
+// Ticker mpptUpdater(mpptUpdate, MPPT_UPDATE_PERIOD, 0, MILLIS);
+STM32Timer mpptUpdater(TIM1);
 volatile float targetVoltage[NUM_ARRAYS] = {INIT_VOLT, INIT_VOLT, INIT_VOLT};
 volatile float targetVoltage_C[NUM_ARRAYS] = {INIT_VOLT, INIT_VOLT, INIT_VOLT};
 
@@ -92,4 +93,9 @@ void mpptUpdate() {
         // Update power for next cycle
         oldPower[i] = arrayData[i].curPower;
     }
+}
+
+void initMPPT() {
+    // mpptUpdater.attach(mpptUpdate, updatePeriod);
+    mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD*1000, mpptUpdate);
 }
