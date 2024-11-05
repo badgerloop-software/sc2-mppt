@@ -2,7 +2,7 @@
 #define __IO_MANAGEMENT_H__
 
 #include "const.h"
-#include "PID.h"
+#include "pid.h"
 #include "Ticker.h"
 #include "TimeoutCallback.h"
 #include "ina281.h"
@@ -13,11 +13,10 @@
 // Solar array and battery data
 typedef struct ArrayData {
     double dutyCycle = 0;
-    double voltage = 0;
+    float voltage = 0;
     float current = 0;
     float curPower = 0;
     float temp = 0;
-    double outputPWM = 0;
 } ArrayData;
 
 extern volatile ArrayData arrayData[NUM_ARRAYS];

@@ -96,6 +96,5 @@ void mpptUpdate() {
 }
 
 void initMPPT() {
-    // mpptUpdater.attach(mpptUpdate, updatePeriod);
     mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD*1000, mpptUpdate);
 }

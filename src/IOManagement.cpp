@@ -17,19 +17,19 @@ ArrayPins arrayPins[NUM_ARRAYS] = {
     {
         VOLT_PIN_1, 
         INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD.count() / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), // divide by 1000 because interval is in seconds
         PWM_OUT_1
     },
     {
         VOLT_PIN_2, 
         INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD.count() / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
         PWM_OUT_2
     },
     {
         VOLT_PIN_3, 
         INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD.count() / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
         PWM_OUT_3
     }
 };
@@ -52,8 +52,6 @@ void completeOVFaultReset();
 TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &completeOVFaultReset);
 
 // Ticker to poll input readings at fixed rate
-void updateData();
-// Ticker dataUpdater(updateData, IO_UPDATE_PERIOD, 0, MILLIS);
 STM32Timer dataUpdater(TIM2);
 
 // Updates arrayData with new input values and PWM outputs based on PID loop
@@ -65,35 +63,28 @@ void updateData() {
         // Inputs corresponds to bits 0 and 1 of array number
         digitalWrite(THERM_MUX_SEL_0, i & 0x1);
         digitalWrite(THERM_MUX_SEL_1, i & 0x2);
-        arrayData[i].voltage = analogRead(arrayPins[i].voltPin) * V_SCALE;
+        arrayData[i].voltage = (float)analogRead(arrayPins[i].voltPin) * 3.3/1024 * V_SCALE;
         arrayData[i].current = arrayPins[i].currPin.readCurrent();
         arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
         arrayData[i].dutyCycle = analogRead(arrayPins[i].pwmPin);
-        arrayData[i].temp = thermPin.get_temperature();
+        arrayData[i].temp = (float)thermPin.get_temperature() * 3.3/1024; 
 
         totalPower += arrayData[i].curPower;
     }
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(arrayPins[i].pwmPin, PinMap_PWM);
-        if (Instance == nullptr){
-            // Error
-            continue;
-        }
-        HardwareTimer *MyTim = new HardwareTimer(Instance);
-
         if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
-            //analogWrite(arrayPins[i].pwmPin, 0); Old code
-        
+            // turn off boost converters 
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
-            arrayPins[i].pidController.compute();
-            MyTim->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].outputPWM);
+            arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
+            float outputPWM = arrayPins[i].pidController.compute();
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, outputPWM);
         }
     }
 
     boostEnabled = digitalRead(BOOST_ENABLED_PIN);
-    battVolt = analogRead(BATTERY_VOLT_PIN) * BATT_V_SCALE;
+    battVolt = (float)analogRead(BATTERY_VOLT_PIN) * 3.3/1024 * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
 
@@ -106,21 +97,16 @@ void updateData() {
     */
 }
 
-void initPID(int array) {
-    arrayPins[array].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);
-    arrayPins[array].pidController.setOutputLimits(PWM_DUTY_MIN, PWM_DUTY_MAX);
-    arrayPins[array].pidController.setMode(AUTO_MODE);
-    arrayData[array].pidController.setSetPoint(INIT_VOLT);
-    // arrayPins[array].pidController.setSampleTime(IO_UPDATE_PERIOD);
-}
-
 void initData() {
     // Auto updating IO
-    dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData);
+    dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData); // multiply by 1000 because interval is in us
 
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        initPID(i);
+        arrayPins[i].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);
+        arrayPins[i].pidController.setOutputLimits(PWM_DUTY_MIN, PWM_DUTY_MAX);
+        arrayPins[i].pidController.setMode(AUTO_MODE);
+        arrayPins[i].pidController.setSetPoint(INIT_VOLT);
 
         // Initialize PWM Hardware Timer ONCE 
         TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(arrayPins[i].pwmPin, PinMap_PWM);
@@ -171,7 +157,7 @@ void completeOVFaultReset() {
 
 void clearOVFaultReset(uint8_t value) {
     digitalWrite(OV_FAULT_RST_PIN, value);
-    ovFaultResetDelayer.start();
+    ovFaultResetDelayer.start(); 
 }
 
 void setCapDischarge(uint8_t value) {
