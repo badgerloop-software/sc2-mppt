@@ -99,7 +99,7 @@ void updateData() {
 
 void initData() {
     // Auto updating IO
-    dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData); // multiply by 1000 because interval is in us
+    //dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData); // multiply by 1000 because interval is in us
 
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
@@ -115,9 +115,9 @@ void initData() {
         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
     }
     
-    // initialize digital pins
+    // // initialize digital pins
     pinMode(BOOST_ENABLED_PIN, INPUT);
-    pinMode(THERM_MUX_SEL_0, OUTPUT);
+    //pinMode(THERM_MUX_SEL_0, OUTPUT);
     pinMode(THERM_MUX_SEL_1, OUTPUT);
     pinMode(OV_FAULT_RST_PIN, OUTPUT);
     pinMode(DISCHARGE_CAPS_PIN, OUTPUT);
