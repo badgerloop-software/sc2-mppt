@@ -151,7 +151,7 @@ void setArrayVoltOut(double voltage, int array) {
     On CAN command, holds the OV fault reset low for fixed period of time to simulate
     manual reset via button press
 */
-void completeOVvFaultReset() {
+void completeOVFaultReset() {
     digitalWrite(OV_FAULT_RST_PIN, LOW);
     ovFaultResetDelayer.stopTimer();
 }

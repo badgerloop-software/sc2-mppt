@@ -54,7 +54,7 @@ void setup() {
     printf("voltage0,current0,temp0,voltage1,current1,temp1,voltage2,current2,temp2,battVolt,targVolt\n");
   #endif
 
-
+  Serial.begin(9600);
   initData();
   //initMPPT(MPPT_UPDATE_PERIOD);   
   bool past_boostenabled = false;
