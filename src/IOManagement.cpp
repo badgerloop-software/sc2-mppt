@@ -49,7 +49,7 @@ Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
 
 // Misc controlled outputs. Default to nominal state
 void completeOVFaultReset();
-TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &completeOVFaultReset);
+STM32TimerInterrupt ovFaultResetDelayer(TIM7);  //Change timer to correct one
 
 // Ticker to poll input readings at fixed rate
 STM32Timer dataUpdater(TIM2);
@@ -151,13 +151,14 @@ void setArrayVoltOut(double voltage, int array) {
     On CAN command, holds the OV fault reset low for fixed period of time to simulate
     manual reset via button press
 */
-void completeOVFaultReset() {
+void completeOVvFaultReset() {
     digitalWrite(OV_FAULT_RST_PIN, LOW);
+    ovFaultResetDelayer.stopTimer();
 }
 
 void clearOVFaultReset(uint8_t value) {
     digitalWrite(OV_FAULT_RST_PIN, value);
-    ovFaultResetDelayer.start(); 
+    ovFaultResetDelayer.attachInterruptInterval(OV_FAULT_RST_PERIOD*1000, completeOVFaultReset);
 }
 
 void setCapDischarge(uint8_t value) {
