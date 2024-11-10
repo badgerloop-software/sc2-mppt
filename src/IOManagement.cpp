@@ -49,10 +49,10 @@ Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
 
 // Misc controlled outputs. Default to nominal state
 void completeOVFaultReset();
-STM32TimerInterrupt ovFaultResetDelayer(TIM7);  //Change timer to correct one
+STM32TimerInterrupt ovFaultResetDelayer(TIM7);  
 
 // Ticker to poll input readings at fixed rate
-STM32Timer dataUpdater(TIM2);
+STM32TimerInterrupt dataUpdater(TIM2);
 
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
@@ -64,29 +64,29 @@ void updateData() {
         digitalWrite(THERM_MUX_SEL_0, i & 0x1);
         digitalWrite(THERM_MUX_SEL_1, i & 0x2);
         arrayData[i].voltage = (float)analogRead(arrayPins[i].voltPin) * 3.3/1024 * V_SCALE;
-        arrayData[i].current = arrayPins[i].currPin.readCurrent();
+        // arrayData[i].current = arrayPins[i].currPin.readCurrent();
         arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
-        arrayData[i].dutyCycle = analogRead(arrayPins[i].pwmPin);
-        arrayData[i].temp = (float)thermPin.get_temperature() * 3.3/1024; 
+        // arrayData[i].dutyCycle = analogRead(arrayPins[i].pwmPin);
+        // arrayData[i].temp = thermPin.get_temperature();
 
         totalPower += arrayData[i].curPower;
     }
 
-    for (int i = 0; i < NUM_ARRAYS; i++) {
-        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            // turn off boost converters 
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
-        } else {
-            arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
-            float outputPWM = arrayPins[i].pidController.compute();
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, outputPWM);
-        }
-    }
+    // for (int i = 0; i < NUM_ARRAYS; i++) {
+    //     if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+    //         // turn off boost converters 
+    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
+    //     } else {
+    //         arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
+    //         float outputPWM = arrayPins[i].pidController.compute();
+    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, outputPWM);
+    //     }
+    // }
 
-    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
-    battVolt = (float)analogRead(BATTERY_VOLT_PIN) * 3.3/1024 * BATT_V_SCALE;
+    // boostEnabled = digitalRead(BOOST_ENABLED_PIN);
+    // battVolt = (float)analogRead(BATTERY_VOLT_PIN) * 3.3/1024 * BATT_V_SCALE;
 
-    outputCurrent = totalPower / battVolt; // only used in debug printouts now.
+    // outputCurrent = totalPower / battVolt; // only used in debug printouts now.
 
     // Failed to program CONST_CURR_THRESH in time, change mode based on SOC instead
     if (packSOC < 98) chargeMode = ChargeMode::MPPT;
@@ -99,7 +99,11 @@ void updateData() {
 
 void initData() {
     // Auto updating IO
-    //dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData); // multiply by 1000 because interval is in us
+    if(dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData)) { // multiply by 1000 because interval is in us
+        printf("starting dataUpdater timer\n");
+    } else {
+        printf("problem starting dataUpdater timer\n");
+    }
 
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {

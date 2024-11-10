@@ -44,7 +44,14 @@ void debugPrint() {
             arrayData[0].voltage, targetVoltage_C[0], arrayData[0].current, outputCurrent, arrayData[0].curPower, arrayData[0].dutyCycle,
             targetVoltage[0], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[0] - arrayData[0].voltage);
 }
+#elif DEBUG_PRINT == 4
+void debugPrint() {
+  printf("Array 0 voltage: %f\n", arrayData[0].voltage);
+  Serial.println(arrayData[0].voltage);
+  printf("line\n");
+}
 #endif
+
 
 void setup() {
   #if DEBUG_PRINT
@@ -64,9 +71,9 @@ void loop() {
   #if DEBUG_PRINT == 3
     delay(100); // 0.1 sec
     debugPrint();
-  #elif DEBUG_PRINT == 1
+  #elif DEBUG_PRINT == 1 || DEBUG_PRINT == 4
     // Display digital and analog values every second (for testing) 
-    if (counter >= (100 / DATA_SEND_PERIOD)) {
+    if (counter >= (1000 / DATA_SEND_PERIOD)) {
       debugPrint();
       counter = 0;
     }

@@ -101,7 +101,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // 1 for human readable mode
 // 2 for logging/csv mode
 // 3 for showing array 0 values only
-#define DEBUG_PRINT 1
+#define DEBUG_PRINT 4
 
 // How fast to transmit data over CAN in ms (and debug prints if on) 
 #define DATA_SEND_PERIOD 50

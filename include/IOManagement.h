@@ -3,8 +3,6 @@
 
 #include "const.h"
 #include "pid.h"
-#include "Ticker.h"
-#include "TimeoutCallback.h"
 #include "ina281.h"
 #include "thermistor.h"
 #include "STM32TimerInterrupt_Generic.h"

@@ -4,7 +4,6 @@
 
 #include "const.h"
 #include "IOManagement.h"
-#include "Ticker.h"
 #include "STM32TimerInterrupt_Generic.h"
 
 extern volatile float targetVoltage[NUM_ARRAYS];
