@@ -5,7 +5,7 @@
 volatile ArrayData arrayData[NUM_ARRAYS];
 
 struct ArrayPins {
-    PinName voltPin;
+    uint32_t voltChannel;
     INA281Driver currPin;      
     PID pidController;
     PinName pwmPin;             
@@ -15,19 +15,19 @@ struct ArrayPins {
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
     {
-        VOLT_PIN_1, 
+        VOLT_CHANNEL_1, 
         INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
         PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), // divide by 1000 because interval is in seconds
         PWM_OUT_1
     },
     {
-        VOLT_PIN_2, 
+        VOLT_CHANNEL_2, 
         INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
         PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
         PWM_OUT_2
     },
     {
-        VOLT_PIN_3, 
+        VOLT_CHANNEL_3, 
         INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
         PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
         PWM_OUT_3
@@ -63,30 +63,30 @@ void updateData() {
         // Inputs corresponds to bits 0 and 1 of array number
         digitalWrite(THERM_MUX_SEL_0, i & 0x1);
         digitalWrite(THERM_MUX_SEL_1, i & 0x2);
-        arrayData[i].voltage = (float)analogRead(arrayPins[i].voltPin) * 3.3/1024 * V_SCALE;
-        // arrayData[i].current = arrayPins[i].currPin.readCurrent();
-        arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
-        // arrayData[i].dutyCycle = analogRead(arrayPins[i].pwmPin);
+        arrayData[i].voltage = readADC(arrayPins[i].voltChannel) * V_SCALE;
+        arrayData[i].current = arrayPins[i].currPin.readCurrent();
+        
         // arrayData[i].temp = thermPin.get_temperature();
 
+        arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
         totalPower += arrayData[i].curPower;
     }
 
-    // for (int i = 0; i < NUM_ARRAYS; i++) {
-    //     if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-    //         // turn off boost converters 
-    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
-    //     } else {
-    //         arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
-    //         float outputPWM = arrayPins[i].pidController.compute();
-    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, outputPWM);
-    //     }
-    // }
+    for (int i = 0; i < NUM_ARRAYS; i++) {
+        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+            // turn off boost converters 
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
+        } else {
+            arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
+            arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // since the new PWM is percentage based, goes from 0 to 100
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].dutyCycle);
+        }
+    }
 
-    // boostEnabled = digitalRead(BOOST_ENABLED_PIN);
-    // battVolt = (float)analogRead(BATTERY_VOLT_PIN) * 3.3/1024 * BATT_V_SCALE;
+    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
+    battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;
 
-    // outputCurrent = totalPower / battVolt; // only used in debug printouts now.
+    outputCurrent = totalPower / battVolt; // only used in debug printouts now.
 
     // Failed to program CONST_CURR_THRESH in time, change mode based on SOC instead
     if (packSOC < 98) chargeMode = ChargeMode::MPPT;
@@ -98,13 +98,6 @@ void updateData() {
 }
 
 void initData() {
-    // Auto updating IO
-    if(dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData)) { // multiply by 1000 because interval is in us
-        printf("starting dataUpdater timer\n");
-    } else {
-        printf("problem starting dataUpdater timer\n");
-    }
-
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
         arrayPins[i].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);
@@ -121,12 +114,19 @@ void initData() {
     
     // // initialize digital pins
     pinMode(BOOST_ENABLED_PIN, INPUT);
-    //pinMode(THERM_MUX_SEL_0, OUTPUT);
+    pinMode(THERM_MUX_SEL_0, OUTPUT);
     pinMode(THERM_MUX_SEL_1, OUTPUT);
     pinMode(OV_FAULT_RST_PIN, OUTPUT);
     pinMode(DISCHARGE_CAPS_PIN, OUTPUT);
     digitalWrite(OV_FAULT_RST_PIN, LOW);
     digitalWrite(DISCHARGE_CAPS_PIN, HIGH);
+
+    // start the Timer to periodically read IO
+    if(dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData)) { // multiply by 1000 because interval is in us
+        printf("starting dataUpdater timer\n");
+    } else {
+        printf("problem starting dataUpdater timer\n");
+    }
 }
 
 void resetPID() {

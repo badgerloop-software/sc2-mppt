@@ -3,6 +3,7 @@
 
 #include "const.h"
 #include "pid.h"
+#include "adc.h"
 #include "ina281.h"
 #include "thermistor.h"
 #include "STM32TimerInterrupt_Generic.h"
@@ -10,7 +11,7 @@
 
 // Solar array and battery data
 typedef struct ArrayData {
-    double dutyCycle = 0;
+    uint8_t dutyCycle = 0;
     float voltage = 0;
     float current = 0;
     float curPower = 0;

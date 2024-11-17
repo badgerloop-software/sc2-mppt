@@ -4,6 +4,7 @@
 #include "const.h"
 #include "IOManagement.h"
 #include "mppt.h"
+#include "adc.h"
 
 int counter;
 bool past_boostenabled;
@@ -45,10 +46,10 @@ void debugPrint() {
             targetVoltage[0], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[0] - arrayData[0].voltage);
 }
 #elif DEBUG_PRINT == 4
+uint8_t count = 0;
 void debugPrint() {
   printf("Array 0 voltage: %f\n", arrayData[0].voltage);
-  Serial.println(arrayData[0].voltage);
-  printf("line\n");
+  printf("line %d\n", count++);
 }
 #endif
 
@@ -61,7 +62,9 @@ void setup() {
     printf("voltage0,current0,temp0,voltage1,current1,temp1,voltage2,current2,temp2,battVolt,targVolt\n");
   #endif
 
-  Serial.begin(9600);
+  Serial.begin(115200);
+  // initialize the ADC
+  initADC(ADC1);
   initData();
   //initMPPT(MPPT_UPDATE_PERIOD);   
   bool past_boostenabled = false;
@@ -69,11 +72,10 @@ void setup() {
 
 void loop() {
   #if DEBUG_PRINT == 3
-    delay(100); // 0.1 sec
     debugPrint();
   #elif DEBUG_PRINT == 1 || DEBUG_PRINT == 4
     // Display digital and analog values every second (for testing) 
-    if (counter >= (1000 / DATA_SEND_PERIOD)) {
+    if (counter >= (200 / DATA_SEND_PERIOD)) {
       debugPrint();
       counter = 0;
     }
@@ -83,10 +85,9 @@ void loop() {
     if (!past_boostenabled && boostEnabled) {
       resetPID();
     }
-  past_boostenabled = boostEnabled;
+    past_boostenabled = boostEnabled;
 
 
-  canBus.sendMPPTData();
-  canBus.runQueue(DATA_SEND_PERIOD);
-       
+    canBus.sendMPPTData();
+    canBus.runQueue(DATA_SEND_PERIOD);
 }

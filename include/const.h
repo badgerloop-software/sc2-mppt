@@ -2,9 +2,21 @@
 #define CONST_H
 // this header should include all relevant constant values so they can all be easily changed
 
+// constants used for testing
+#define IO_UPDATE_PERIOD 100    // ms
+
+// ------------- TESTING/OTHER CONSTANTS -------------
+// Whether to log data and steps in file. Should only be enabled
+// when microcontroller outputting via serial 
+// 1 for human readable mode
+// 2 for logging/csv mode
+// 3 for showing array 0 values only
+// 4 for minimal printout
+#define DEBUG_PRINT 1
+
+
 
 // ------------- IO INPUT CONSTANTS -------------
-#define IO_UPDATE_PERIOD 100    // ms
 #define NUM_ARRAYS 3
 
 // Analog input modifiers (derived from circuitry)
@@ -12,26 +24,26 @@ constexpr float V_SCALE = (103.3/3.3)*3.33;
 constexpr float BATT_V_SCALE = 3.325 * 101;
 
 //Input pins to read voltage for each solar array
-#define VOLT_PIN_1 PA_6
-#define VOLT_PIN_2 PA_4
-#define VOLT_PIN_3 PA_1
+#define VOLT_CHANNEL_1 ADC_CHANNEL_11 // PA_6
+#define VOLT_CHANNEL_2 ADC_CHANNEL_9 // PA_4    doesn't work
+#define VOLT_CHANNEL_3 ADC_CHANNEL_6 // PA_1
 
 //Input pins to read current for each solar array
-#define CURR_PIN_1 PA_7
-#define CURR_PIN_2 PA_5
-#define CURR_PIN_3 PA_3
+#define CURR_PIN_1 ADC_CHANNEL_12 // PA_7       doesn't work 
+#define CURR_PIN_2 ADC_CHANNEL_10 // PA_5
+#define CURR_PIN_3 ADC_CHANNEL_8 // PA_3
 
 #define INA_SHUNT_R 0.01
 
 // Input pin to get battery voltage
-#define BATTERY_VOLT_PIN PB_0
+#define BATTERY_VOLT_CHANNEL ADC_CHANNEL_15 // PB_0
 
 // Output pins for selecting thermistor via multiplexer
 #define THERM_MUX_SEL_1 PB_4
-#define THERM_MUX_SEL_0 PB_5
+#define THERM_MUX_SEL_0 D11 // PB5
 
 // Input pin for enabling boost
-#define BOOST_ENABLED_PIN PB_7
+#define BOOST_ENABLED_PIN PB7
 
 // Output pins for voltage control of arrays via PWM
 #define PWM_OUT_1 PA_9
@@ -95,13 +107,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define MOVE_VOLTAGE 5
 #define MAX_STUCK_CYCLES 5
 
-// ------------- TESTING/OTHER CONSTANTS -------------
-// Whether to log data and steps in file. Should only be enabled
-// when microcontroller outputting via serial 
-// 1 for human readable mode
-// 2 for logging/csv mode
-// 3 for showing array 0 values only
-#define DEBUG_PRINT 4
+
 
 // How fast to transmit data over CAN in ms (and debug prints if on) 
 #define DATA_SEND_PERIOD 50
