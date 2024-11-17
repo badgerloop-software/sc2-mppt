@@ -45,7 +45,7 @@ volatile float packCurrent = 0;
 volatile float outputCurrent = 0; 
 
 // Temperature reading pins (single ADC, select thermistor via multiplexer)
-Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
+Thermistor thermPin(NCP21XM472J03RA_Constants, THERM_PIN, 10000);
 
 // Misc controlled outputs. Default to nominal state
 void completeOVFaultReset();
@@ -66,7 +66,7 @@ void updateData() {
         arrayData[i].voltage = readADC(arrayPins[i].voltChannel) * V_SCALE;
         arrayData[i].current = arrayPins[i].currPin.readCurrent();
         
-        // arrayData[i].temp = thermPin.get_temperature();
+        arrayData[i].temp = thermPin.get_temperature();
 
         arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
         totalPower += arrayData[i].curPower;
