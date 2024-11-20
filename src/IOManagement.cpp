@@ -54,6 +54,8 @@ STM32TimerInterrupt ovFaultResetDelayer(TIM7);
 // Ticker to poll input readings at fixed rate
 STM32TimerInterrupt dataUpdater(TIM2);
 
+uint8_t duty_cycle = 0;
+
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
     float totalPower = 0;
@@ -72,16 +74,23 @@ void updateData() {
         totalPower += arrayData[i].curPower;
     }
 
-    for (int i = 0; i < NUM_ARRAYS; i++) {
-        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            // turn off boost converters 
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
-        } else {
-            arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
-            arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // since the new PWM is percentage based, goes from 0 to 100
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].dutyCycle);
-        }
+    // for (int i = 0; i < NUM_ARRAYS; i++) {
+    //     if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+    //         // turn off boost converters 
+    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
+    //     } else {
+    //         arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
+    //         arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // since the new PWM is percentage based, goes from 0 to 100
+    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
+    //     }
+    // }
+    if (duty_cycle > 60) {
+        duty_cycle = 0;
     }
+    duty_cycle++;
+    arrayPins[0].pwmTimer->setPWM(arrayPins[0].channel, arrayPins[0].pwmPin, PWM_FREQ, duty_cycle);
+    arrayPins[1].pwmTimer->setPWM(arrayPins[1].channel, arrayPins[1].pwmPin, PWM_FREQ, 30);
+    arrayPins[2].pwmTimer->setPWM(arrayPins[2].channel, arrayPins[2].pwmPin, PWM_FREQ, 60);
 
     boostEnabled = digitalRead(BOOST_ENABLED_PIN);
     battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;

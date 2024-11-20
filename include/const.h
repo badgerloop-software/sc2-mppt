@@ -25,37 +25,37 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 
 //Input pins to read voltage for each solar array
 #define VOLT_CHANNEL_1 ADC_CHANNEL_11 // PA_6
-#define VOLT_CHANNEL_2 ADC_CHANNEL_9 // PA_4    doesn't work
+#define VOLT_CHANNEL_2 ADC_CHANNEL_9 // PA_4    A3 doesn't work
 #define VOLT_CHANNEL_3 ADC_CHANNEL_6 // PA_1
 
 //Input pins to read current for each solar array
-#define CURR_PIN_1 ADC_CHANNEL_12 // PA_7       doesn't work 
+#define CURR_PIN_1 ADC_CHANNEL_12 // PA_7       
 #define CURR_PIN_2 ADC_CHANNEL_10 // PA_5
 #define CURR_PIN_3 ADC_CHANNEL_8 // PA_3
 
 // Thermistor Pin
-#define THERM_PIN ADC_CHANNEL_5 // PA_0
+#define THERM_PIN ADC_CHANNEL_5 // PA_0     A0 
 
 #define INA_SHUNT_R 0.01
 
 // Input pin to get battery voltage
-#define BATTERY_VOLT_CHANNEL ADC_CHANNEL_15 // PB_0
+#define BATTERY_VOLT_CHANNEL ADC_CHANNEL_15 // PB_0     D3
 
 // Output pins for selecting thermistor via multiplexer
-#define THERM_MUX_SEL_1 PB_4
-#define THERM_MUX_SEL_0 D11 // PB5
+#define THERM_MUX_SEL_1 D12 // PB_4  for some reason this affected PA_7
+#define THERM_MUX_SEL_0 D11 // PB_5
 
 // Input pin for enabling boost
-#define BOOST_ENABLED_PIN PB7
+#define BOOST_ENABLED_PIN D4 // PB_7
 
 // Output pins for voltage control of arrays via PWM
-#define PWM_OUT_1 PA_9
-#define PWM_OUT_2 PA_10
-#define PWM_OUT_3 PA_8
+#define PWM_OUT_1 PA_9      // D1
+#define PWM_OUT_2 PA_10     // D0
+#define PWM_OUT_3 PA_8      // D9
 
 // CAN triggered outputs
-#define OV_FAULT_RST_PIN PB_6
-#define DISCHARGE_CAPS_PIN PB_1
+#define OV_FAULT_RST_PIN D5 // PB_6
+#define DISCHARGE_CAPS_PIN D6 // PB_1
 
 // Output voltage limit 
 #define V_MAX 110
@@ -115,13 +115,9 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // How fast to transmit data over CAN in ms (and debug prints if on) 
 #define DATA_SEND_PERIOD 50
 
-// CAN Pins
-#define CAN_RX PA_11
-#define CAN_TX PA_12
-
 // Duration undervoltage fault reset asserted on command 
 #define OV_FAULT_RST_PERIOD 250     // ms
 
 
 
-#endif // CONST_H
+#endif 
