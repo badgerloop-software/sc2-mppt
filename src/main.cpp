@@ -46,10 +46,8 @@ void debugPrint() {
             targetVoltage[0], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[0] - arrayData[0].voltage);
 }
 #elif DEBUG_PRINT == 4
-uint8_t count = 0;
 void debugPrint() {
-  printf("Array 0 voltage: %f\n", arrayData[0].voltage);
-  printf("line %d\n", count++);
+  printf("can messages: %d\n", canBus.num_messages);
 }
 #endif
 
