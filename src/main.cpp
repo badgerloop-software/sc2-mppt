@@ -45,10 +45,6 @@ void debugPrint() {
             arrayData[0].voltage, targetVoltage_C[0], arrayData[0].current, outputCurrent, arrayData[0].curPower, arrayData[0].dutyCycle,
             targetVoltage[0], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[0] - arrayData[0].voltage);
 }
-#elif DEBUG_PRINT == 4
-void debugPrint() {
-  printf("can messages: %d\n", canBus.num_messages);
-}
 #endif
 
 
@@ -61,10 +57,9 @@ void setup() {
   #endif
 
   Serial.begin(115200);
-  // initialize the ADC
   initADC(ADC1);
   initData();
-  //initMPPT(MPPT_UPDATE_PERIOD);   
+  initMPPT();   
   bool past_boostenabled = false;
 }
 

@@ -17,19 +17,19 @@ ArrayPins arrayPins[NUM_ARRAYS] = {
     {
         VOLT_CHANNEL_1, 
         INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), // divide by 1000 because interval is in seconds
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
         PWM_OUT_1
     },
     {
         VOLT_CHANNEL_2, 
         INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
         PWM_OUT_2
     },
     {
         VOLT_CHANNEL_3, 
         INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
         PWM_OUT_3
     }
 };
@@ -45,7 +45,7 @@ volatile float packCurrent = 0;
 volatile float outputCurrent = 0; 
 
 // Temperature reading pins (single ADC, select thermistor via multiplexer)
-Thermistor thermPin(NCP21XM472J03RA_Constants, THERM_PIN, 10000);
+Thermistor thermPin(NCP21XM472J03RA_Constants, THERM_PIN, THERM_RESISTANCE);
 
 // Misc controlled outputs. Default to nominal state
 void completeOVFaultReset();
@@ -74,23 +74,16 @@ void updateData() {
         totalPower += arrayData[i].curPower;
     }
 
-    // for (int i = 0; i < NUM_ARRAYS; i++) {
-    //     if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-    //         // turn off boost converters 
-    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
-    //     } else {
-    //         arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
-    //         arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // since the new PWM is percentage based, goes from 0 to 100
-    //         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
-    //     }
-    // }
-    if (duty_cycle > 60) {
-        duty_cycle = 0;
+    for (int i = 0; i < NUM_ARRAYS; i++) {
+        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+            // turn off boost converters 
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
+        } else {
+            arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
+            arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // multiply by 100 because the new PWM is percentage based, goes from 0 to 100
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
+        }
     }
-    duty_cycle++;
-    arrayPins[0].pwmTimer->setPWM(arrayPins[0].channel, arrayPins[0].pwmPin, PWM_FREQ, duty_cycle);
-    arrayPins[1].pwmTimer->setPWM(arrayPins[1].channel, arrayPins[1].pwmPin, PWM_FREQ, 30);
-    arrayPins[2].pwmTimer->setPWM(arrayPins[2].channel, arrayPins[2].pwmPin, PWM_FREQ, 60);
 
     boostEnabled = digitalRead(BOOST_ENABLED_PIN);
     battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;
@@ -131,7 +124,7 @@ void initData() {
     digitalWrite(DISCHARGE_CAPS_PIN, HIGH);
 
     // start the Timer to periodically read IO
-    if(dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData)) { // multiply by 1000 because interval is in us
+    if(dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD, updateData)) { 
         printf("starting dataUpdater timer\n");
     } else {
         printf("problem starting dataUpdater timer\n");
@@ -144,18 +137,18 @@ void resetPID() {
     }
 }
 
-void resetArrayPID(int array) {
+void resetArrayPID(uint8_t array) {
     arrayPins[array].pidController.reset();
 }
 
-void setVoltOut(double voltage) {
+void setVoltOut(float voltage) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
     for (int i = 0; i < NUM_ARRAYS; i++) {
         arrayPins[i].pidController.setSetPoint(voltage);
     }
 }
 
-void setArrayVoltOut(double voltage, int array) {
+void setArrayVoltOut(float voltage, uint8_t array) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
     arrayPins[array].pidController.setSetPoint(voltage);
 }

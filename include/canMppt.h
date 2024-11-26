@@ -11,7 +11,6 @@ class CANMPPT : public CANManager {
         CANMPPT(CAN_TypeDef* canPort, CAN_PINS pins, int frequency = DEFAULT_CAN_FREQ);
         void readHandler(CAN_message_t msg);
         void sendMPPTData();
-        uint8_t num_messages;
 };
 
 #endif // __CAN_MPPT_H__

@@ -3,7 +3,13 @@
 // this header should include all relevant constant values so they can all be easily changed
 
 // constants used for testing
-#define IO_UPDATE_PERIOD 100    // ms
+#define IO_UPDATE_PERIOD 100000    // us
+#define PID_UPDATE_PERIOD (float)IO_UPDATE_PERIOD / 1000000 // divide by 1000000 because PID interval is in seconds
+
+// Frequency of MPPT algo updates
+#define MPPT_UPDATE_PERIOD 10 * IO_UPDATE_PERIOD
+
+
 
 // ------------- TESTING/OTHER CONSTANTS -------------
 // Whether to log data and steps in file. Should only be enabled
@@ -11,8 +17,7 @@
 // 1 for human readable mode
 // 2 for logging/csv mode
 // 3 for showing array 0 values only
-// 4 for minimal printout
-#define DEBUG_PRINT 4
+#define DEBUG_PRINT 1
 
 
 
@@ -35,7 +40,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 
 // Thermistor Pin
 #define THERM_PIN ADC_CHANNEL_5 // PA_0     A0 
-
+#define THERM_RESISTANCE 10000 // 10k
 #define INA_SHUNT_R 0.01
 
 // Input pin to get battery voltage
@@ -91,8 +96,6 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 //Maximum current the algo loop can target would be the pack charge current limit
 #define I_TARGET_MAX 20
 
-// Frequency of MPPT algo updates
-#define MPPT_UPDATE_PERIOD 10 * IO_UPDATE_PERIOD
 
 // Current threshold to switch to constant current
 #define CONST_CURR_THRESH packChargeCurrentLimit

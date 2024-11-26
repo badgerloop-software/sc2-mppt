@@ -1,12 +1,9 @@
 #include "canMppt.h"
 #include "mppt.h"
 
-CANMPPT::CANMPPT(CAN_TypeDef* canPort, CAN_PINS pins, int frequency /*= DEFAULT_CAN_FREQ*/) : CANManager(canPort, pins, frequency) {
-    this->num_messages = 0;
-};
+CANMPPT::CANMPPT(CAN_TypeDef* canPort, CAN_PINS pins, int frequency) : CANManager(canPort, pins, frequency) {};
 
 void CANMPPT::readHandler(CAN_message_t msg) {
-    this->num_messages++;
     uint8_t* data = msg.buf;
     switch (msg.id) {
         case 0x050:

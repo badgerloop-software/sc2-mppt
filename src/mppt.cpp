@@ -96,5 +96,9 @@ void mpptUpdate() {
 }
 
 void initMPPT() {
-    mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD*1000, mpptUpdate);
+    if (mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD, mpptUpdate)) {
+        printf("starting MPPT timer\n");
+    } else {
+        printf("ERROR: couldn't start MPPT timer\n");
+    }
 }
