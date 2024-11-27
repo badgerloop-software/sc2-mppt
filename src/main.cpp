@@ -4,6 +4,7 @@
 #include "const.h"
 #include "IOManagement.h"
 #include "mppt.h"
+#include "adc.h"
 
 int counter;
 bool past_boostenabled;
@@ -46,6 +47,7 @@ void debugPrint() {
 }
 #endif
 
+
 void setup() {
   #if DEBUG_PRINT
     int counter = 0;
@@ -54,19 +56,19 @@ void setup() {
     printf("voltage0,current0,temp0,voltage1,current1,temp1,voltage2,current2,temp2,battVolt,targVolt\n");
   #endif
 
-
+  Serial.begin(115200);
+  initADC(ADC1);
   initData();
-  //initMPPT(MPPT_UPDATE_PERIOD);   
+  initMPPT();   
   bool past_boostenabled = false;
 }
 
 void loop() {
   #if DEBUG_PRINT == 3
-    delay(100); // 0.1 sec
     debugPrint();
-  #elif DEBUG_PRINT == 1
+  #elif DEBUG_PRINT == 1 || DEBUG_PRINT == 4
     // Display digital and analog values every second (for testing) 
-    if (counter >= (100 / DATA_SEND_PERIOD)) {
+    if (counter >= (200 / DATA_SEND_PERIOD)) {
       debugPrint();
       counter = 0;
     }
@@ -76,10 +78,9 @@ void loop() {
     if (!past_boostenabled && boostEnabled) {
       resetPID();
     }
-  past_boostenabled = boostEnabled;
+    past_boostenabled = boostEnabled;
 
 
-  canBus.sendMPPTData();
-  canBus.runQueue(DATA_SEND_PERIOD);
-       
+    canBus.sendMPPTData();
+    canBus.runQueue(DATA_SEND_PERIOD);
 }

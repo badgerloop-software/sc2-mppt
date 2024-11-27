@@ -5,6 +5,7 @@
 #include "const.h"
 #include "IOManagement.h"
 
+
 class CANMPPT : public CANManager {
     public:
         CANMPPT(CAN_TypeDef* canPort, CAN_PINS pins, int frequency = DEFAULT_CAN_FREQ);

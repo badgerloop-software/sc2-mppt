@@ -5,7 +5,7 @@
 volatile ArrayData arrayData[NUM_ARRAYS];
 
 struct ArrayPins {
-    PinName voltPin;
+    uint32_t voltChannel;
     INA281Driver currPin;      
     PID pidController;
     PinName pwmPin;             
@@ -15,21 +15,21 @@ struct ArrayPins {
 
 ArrayPins arrayPins[NUM_ARRAYS] = {
     {
-        VOLT_PIN_1, 
+        VOLT_CHANNEL_1, 
         INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), // divide by 1000 because interval is in seconds
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
         PWM_OUT_1
     },
     {
-        VOLT_PIN_2, 
+        VOLT_CHANNEL_2, 
         INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
         PWM_OUT_2
     },
     {
-        VOLT_PIN_3, 
+        VOLT_CHANNEL_3, 
         INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, (float)IO_UPDATE_PERIOD / 1000), 
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
         PWM_OUT_3
     }
 };
@@ -45,14 +45,14 @@ volatile float packCurrent = 0;
 volatile float outputCurrent = 0; 
 
 // Temperature reading pins (single ADC, select thermistor via multiplexer)
-Thermistor thermPin(NCP21XM472J03RA_Constants, PA_0, 10000);
+Thermistor thermPin(NCP21XM472J03RA_Constants, THERM_PIN, THERM_RESISTANCE);
 
 // Misc controlled outputs. Default to nominal state
 void completeOVFaultReset();
-TimeoutCallback ovFaultResetDelayer((unsigned long)OV_FAULT_RST_PERIOD, &completeOVFaultReset);
+STM32TimerInterrupt ovFaultResetDelayer(TIM7);  
 
 // Ticker to poll input readings at fixed rate
-STM32Timer dataUpdater(TIM2);
+STM32TimerInterrupt dataUpdater(TIM2);
 
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
@@ -63,12 +63,12 @@ void updateData() {
         // Inputs corresponds to bits 0 and 1 of array number
         digitalWrite(THERM_MUX_SEL_0, i & 0x1);
         digitalWrite(THERM_MUX_SEL_1, i & 0x2);
-        arrayData[i].voltage = (float)analogRead(arrayPins[i].voltPin) * 3.3/1024 * V_SCALE;
+        arrayData[i].voltage = readADC(arrayPins[i].voltChannel) * V_SCALE;
         arrayData[i].current = arrayPins[i].currPin.readCurrent();
-        arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
-        arrayData[i].dutyCycle = analogRead(arrayPins[i].pwmPin);
-        arrayData[i].temp = (float)thermPin.get_temperature() * 3.3/1024; 
+        
+        arrayData[i].temp = thermPin.get_temperature();
 
+        arrayData[i].curPower = arrayData[i].voltage * arrayData[i].current;
         totalPower += arrayData[i].curPower;
     }
 
@@ -78,13 +78,13 @@ void updateData() {
             arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
             arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
-            float outputPWM = arrayPins[i].pidController.compute();
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, outputPWM);
+            arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // multiply by 100 because the new PWM is percentage based, goes from 0 to 100
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].dutyCycle);
         }
     }
 
     boostEnabled = digitalRead(BOOST_ENABLED_PIN);
-    battVolt = (float)analogRead(BATTERY_VOLT_PIN) * 3.3/1024 * BATT_V_SCALE;
+    battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
 
@@ -98,9 +98,6 @@ void updateData() {
 }
 
 void initData() {
-    // Auto updating IO
-    dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD*1000, updateData); // multiply by 1000 because interval is in us
-
     // PID and PWM setup
     for (int i = 0; i < NUM_ARRAYS; i++) {
         arrayPins[i].pidController.setInputLimits(PID_IN_MIN, PID_IN_MAX);
@@ -123,6 +120,13 @@ void initData() {
     pinMode(DISCHARGE_CAPS_PIN, OUTPUT);
     digitalWrite(OV_FAULT_RST_PIN, LOW);
     digitalWrite(DISCHARGE_CAPS_PIN, HIGH);
+
+    // start the Timer to periodically read IO
+    if(dataUpdater.attachInterruptInterval(IO_UPDATE_PERIOD, updateData)) { 
+        printf("starting dataUpdater timer\n");
+    } else {
+        printf("problem starting dataUpdater timer\n");
+    }
 }
 
 void resetPID() {
@@ -131,18 +135,18 @@ void resetPID() {
     }
 }
 
-void resetArrayPID(int array) {
+void resetArrayPID(uint8_t array) {
     arrayPins[array].pidController.reset();
 }
 
-void setVoltOut(double voltage) {
+void setVoltOut(float voltage) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
     for (int i = 0; i < NUM_ARRAYS; i++) {
         arrayPins[i].pidController.setSetPoint(voltage);
     }
 }
 
-void setArrayVoltOut(double voltage, int array) {
+void setArrayVoltOut(float voltage, uint8_t array) {
     if (voltage > V_TARGET_MAX) voltage = V_TARGET_MAX;
     arrayPins[array].pidController.setSetPoint(voltage);
 }
@@ -153,11 +157,12 @@ void setArrayVoltOut(double voltage, int array) {
 */
 void completeOVFaultReset() {
     digitalWrite(OV_FAULT_RST_PIN, LOW);
+    ovFaultResetDelayer.stopTimer();
 }
 
 void clearOVFaultReset(uint8_t value) {
     digitalWrite(OV_FAULT_RST_PIN, value);
-    ovFaultResetDelayer.start(); 
+    ovFaultResetDelayer.attachInterruptInterval(OV_FAULT_RST_PERIOD, completeOVFaultReset);
 }
 
 void setCapDischarge(uint8_t value) {

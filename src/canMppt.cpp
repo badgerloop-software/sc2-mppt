@@ -1,8 +1,7 @@
 #include "canMppt.h"
 #include "mppt.h"
 
-
-CANMPPT::CANMPPT(CAN_TypeDef* canPort, CAN_PINS pins, int frequency /*= DEFAULT_CAN_FREQ*/) : CANManager(canPort, pins, frequency) {};
+CANMPPT::CANMPPT(CAN_TypeDef* canPort, CAN_PINS pins, int frequency) : CANManager(canPort, pins, frequency) {};
 
 void CANMPPT::readHandler(CAN_message_t msg) {
     uint8_t* data = msg.buf;

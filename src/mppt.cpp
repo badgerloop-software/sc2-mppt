@@ -2,7 +2,7 @@
 
 void mpptUpdate();
 // Ticker mpptUpdater(mpptUpdate, MPPT_UPDATE_PERIOD, 0, MILLIS);
-STM32Timer mpptUpdater(TIM1);
+STM32Timer mpptUpdater(TIM6);
 volatile float targetVoltage[NUM_ARRAYS] = {INIT_VOLT, INIT_VOLT, INIT_VOLT};
 volatile float targetVoltage_C[NUM_ARRAYS] = {INIT_VOLT, INIT_VOLT, INIT_VOLT};
 
@@ -96,5 +96,9 @@ void mpptUpdate() {
 }
 
 void initMPPT() {
-    mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD*1000, mpptUpdate);
+    if (mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD, mpptUpdate)) {
+        printf("starting MPPT timer\n");
+    } else {
+        printf("ERROR: couldn't start MPPT timer\n");
+    }
 }

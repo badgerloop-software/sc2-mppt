@@ -3,8 +3,7 @@
 
 #include "const.h"
 #include "pid.h"
-#include "Ticker.h"
-#include "TimeoutCallback.h"
+#include "adc.h"
 #include "ina281.h"
 #include "thermistor.h"
 #include "STM32TimerInterrupt_Generic.h"
@@ -12,7 +11,7 @@
 
 // Solar array and battery data
 typedef struct ArrayData {
-    double dutyCycle = 0;
+    float dutyCycle = 0;
     float voltage = 0;
     float current = 0;
     float curPower = 0;
@@ -49,14 +48,14 @@ void initData();
 void resetPID();
 
 // Resets duty cycle PID for specified array
-void resetArrayPID(int array);
+void resetArrayPID(uint8_t array);
 
 // Sets voltage output for all arrays
 // Value will be capped if outside V_MIN or V_MAX specified in const.h
-void setVoltOut(double voltage);
+void setVoltOut(float voltage);
 
 // Sets voltage output for specified array
-void setArrayVoltOut(double voltage, int array);
+void setArrayVoltOut(float voltage, uint8_t array);
 
 // Sets clearing of OV fault
 void clearOVFaultReset(uint8_t value);
