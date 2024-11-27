@@ -164,7 +164,7 @@ void completeOVFaultReset() {
 
 void clearOVFaultReset(uint8_t value) {
     digitalWrite(OV_FAULT_RST_PIN, value);
-    ovFaultResetDelayer.attachInterruptInterval(OV_FAULT_RST_PERIOD*1000, completeOVFaultReset);
+    ovFaultResetDelayer.attachInterruptInterval(OV_FAULT_RST_PERIOD, completeOVFaultReset);
 }
 
 void setCapDischarge(uint8_t value) {

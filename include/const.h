@@ -119,7 +119,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define DATA_SEND_PERIOD 50
 
 // Duration undervoltage fault reset asserted on command 
-#define OV_FAULT_RST_PERIOD 2000     // ms
+#define OV_FAULT_RST_PERIOD 250000     // us
 
 
 
