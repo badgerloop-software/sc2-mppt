@@ -11,7 +11,7 @@
 
 // Solar array and battery data
 typedef struct ArrayData {
-    uint8_t dutyCycle = 0;
+    float dutyCycle = 0;
     float voltage = 0;
     float current = 0;
     float curPower = 0;

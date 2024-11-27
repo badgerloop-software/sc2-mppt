@@ -54,8 +54,6 @@ STM32TimerInterrupt ovFaultResetDelayer(TIM7);
 // Ticker to poll input readings at fixed rate
 STM32TimerInterrupt dataUpdater(TIM2);
 
-uint8_t duty_cycle = 0;
-
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
     float totalPower = 0;
@@ -77,11 +75,11 @@ void updateData() {
     for (int i = 0; i < NUM_ARRAYS; i++) {
         if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
             // turn off boost converters 
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
             arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
             arrayData[i].dutyCycle = arrayPins[i].pidController.compute() * 100; // multiply by 100 because the new PWM is percentage based, goes from 0 to 100
-            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 30);
+            arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, arrayData[i].dutyCycle);
         }
     }
 
@@ -114,7 +112,7 @@ void initData() {
         arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
     }
     
-    // // initialize digital pins
+    // initialize digital pins
     pinMode(BOOST_ENABLED_PIN, INPUT);
     pinMode(THERM_MUX_SEL_0, OUTPUT);
     pinMode(THERM_MUX_SEL_1, OUTPUT);

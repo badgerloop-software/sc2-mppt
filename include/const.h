@@ -30,7 +30,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 
 //Input pins to read voltage for each solar array
 #define VOLT_CHANNEL_1 ADC_CHANNEL_11 // PA_6
-#define VOLT_CHANNEL_2 ADC_CHANNEL_9 // PA_4    A3 doesn't work
+#define VOLT_CHANNEL_2 ADC_CHANNEL_9 // PA_4   
 #define VOLT_CHANNEL_3 ADC_CHANNEL_6 // PA_1
 
 //Input pins to read current for each solar array
