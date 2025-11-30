@@ -77,11 +77,11 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 
 // PID output limits (controls PWM duty cycles)
 #define PWM_DUTY_MIN 0
-#define PWM_DUTY_MAX 0.8
+#define PWM_DUTY_MAX 0.72
 #define PWM_PERIOD_US 13
 
 // Frequency of PWM signal
-#define PWM_FREQ 76923
+#define PWM_FREQ 100000  // 100KHz
 
 // ------------- MPPT ALGO CONSTANTS -------------
 // Initial voltage
