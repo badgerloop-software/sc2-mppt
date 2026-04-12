@@ -57,6 +57,7 @@ STM32TimerInterrupt dataUpdater(TIM2);
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
     float totalPower = 0;
+    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // Update temperature mux selection at start for time to update, then read at end
@@ -73,7 +74,7 @@ void updateData() {
     }
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+        if (!boostEnabled || arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
             // turn off boost converters 
             arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
@@ -83,7 +84,6 @@ void updateData() {
         }
     }
 
-    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
     battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
