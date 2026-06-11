@@ -1,4 +1,5 @@
 #include "IOManagement.h"
+#include "mppt.h"
 #include <array>
 
 // Solar array voltage, current, and PWM pins (controlled by PID) and storage variable
@@ -13,25 +14,31 @@ struct ArrayPins {
     HardwareTimer *pwmTimer;        // timer to set PWM output 
 };
 
+// One entry per string. Entries 2 and 3 compile in only when NUM_ARRAYS is large
+// enough, so a 2-string board needs no edits here beyond setting NUM_ARRAYS.
 ArrayPins arrayPins[NUM_ARRAYS] = {
     {
-        VOLT_CHANNEL_1, 
-        INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
+        VOLT_CHANNEL_1,
+        INA281Driver(CURR_PIN_1, INA_SHUNT_R),
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD),
         PWM_OUT_1
     },
+#if NUM_ARRAYS >= 2
     {
-        VOLT_CHANNEL_2, 
-        INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
+        VOLT_CHANNEL_2,
+        INA281Driver(CURR_PIN_2, INA_SHUNT_R),
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD),
         PWM_OUT_2
     },
+#endif
+#if NUM_ARRAYS >= 3
     {
-        VOLT_CHANNEL_3, 
-        INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
+        VOLT_CHANNEL_3,
+        INA281Driver(CURR_PIN_3, INA_SHUNT_R),
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD),
         PWM_OUT_3
     }
+#endif
 };
 
 volatile bool boostEnabled; // Enables PWM-Voltage converters
@@ -89,9 +96,12 @@ void updateData() {
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
 
-    // Failed to program CONST_CURR_THRESH in time, change mode based on SOC instead
-    if (packSOC < 98) chargeMode = ChargeMode::MPPT;
-    else chargeMode = ChargeMode::CONST_CURR;
+    // P&O uses SOC to pick the mode; SafeCharge manages chargeMode itself.
+    if (activeAlgo == MpptAlgo::PerturbObserve) {
+        // Failed to program CONST_CURR_THRESH in time, change mode based on SOC instead
+        if (packSOC < 98) chargeMode = ChargeMode::MPPT;
+        else chargeMode = ChargeMode::CONST_CURR;
+    }
     /*
     if (packCurrent > CONST_CURR_THRESH) chargeMode = ChargeMode::CONST_CURR;
     else if (packCurrent < MPPT_THRESH) chargeMode = ChargeMode::MPPT;

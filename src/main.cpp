@@ -21,7 +21,7 @@ void debugPrint() {
     printf("Boost enable: %i\nBattery Voltage: %5.2f\n", boostEnabled, battVolt);
     printf("Mode: %s\n", (bool)chargeMode ? "MPPT" : "Current");
     printf("Current Limit: %f\n", packChargeCurrentLimit);
-    printf("Target Voltage: %f\n", targetVoltage);
+    printf("Target Voltage: %f\n", targetVoltage[0]);
     // Compute current output current for feedback
     float totalInputPower = 0;
     for (int i = 0; i < NUM_ARRAYS; i++) {
@@ -32,11 +32,10 @@ void debugPrint() {
 }
 #elif DEBUG_PRINT == 2
 void debugPrint() {
-    printf("%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f,%5.2f\n",
-            arrayData[0].voltage, arrayData[0].current,arrayData[0].temp,
-            arrayData[1].voltage, arrayData[1].current,arrayData[1].temp,
-            arrayData[2].voltage, arrayData[2].current,arrayData[2].temp,
-            battVolt, targetVoltage);
+    for (int i = 0; i < NUM_ARRAYS; i++) {
+        printf("%5.2f,%5.2f,%5.2f,", arrayData[i].voltage, arrayData[i].current, arrayData[i].temp);
+    }
+    printf("%5.2f,%5.2f\n", battVolt, targetVoltage[0]);
 }
 #elif DEBUG_PRINT == 3
 // array 0 printout only
@@ -53,7 +52,8 @@ void setup() {
     int counter = 0;
   #endif
   #if DEBUG_PRINT == 2
-    printf("voltage0,current0,temp0,voltage1,current1,temp1,voltage2,current2,temp2,battVolt,targVolt\n");
+    for (int i = 0; i < NUM_ARRAYS; i++) printf("voltage%d,current%d,temp%d,", i, i, i);
+    printf("battVolt,targVolt\n");
   #endif
 
   Serial.begin(115200);
