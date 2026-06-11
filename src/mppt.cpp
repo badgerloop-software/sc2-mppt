@@ -1,4 +1,5 @@
 #include "mppt.h"
+#include "mppt_core.h"
 #include <math.h>
 
 void mpptUpdate();
@@ -87,10 +88,8 @@ static void mpptUpdatePO() {
         }
 
         // If last step increased power, step in same direction. Else step in opposite direction
-        if (arrayData[i].curPower < oldPower[i]) {
-            stepSize[i] *= -1;
-        }
-        
+        stepSize[i] = poNextStep(arrayData[i].curPower, oldPower[i], stepSize[i]);
+
 
         /* UNTESTED FEATURE: variable step size
         // If last step increased power, do bigger step in same direction. Else smaller step opposite direction
@@ -135,43 +134,21 @@ static void mpptUpdateSafeCharge() {
     static float prevI[NUM_ARRAYS] = {0};
 
     // Hard stop: cut the converters (updateData() forces PWM=0 in CONST_CURR).
-    if (!boostEnabled || battVolt >= V_BATT_MAX) {
+    if (safeChargeHardStop(boostEnabled, battVolt)) {
         chargeMode = ChargeMode::CONST_CURR;
         return;
     }
     // Keep converters live for CC / CV / MPPT regulation.
     chargeMode = ChargeMode::MPPT;
 
-    // Effective charge-current ceiling: tightest of BMS limit and fuse margin.
-    float iLimit = packChargeCurrentLimit;
-    if (I_CHG_MAX_FUSE < iLimit) iLimit = I_CHG_MAX_FUSE;
-
-    bool cvPhase = battVolt >= V_BATT_CV;     // near full -> taper
-    bool ccPhase = outputCurrent >= iLimit;   // current ceiling reached
+    // A battery limit binds when we're near full (CV) or at the current ceiling (CC).
+    float iLimit = effectiveChargeCurrentLimit(packChargeCurrentLimit);
+    bool limiting = safeChargeCvActive(battVolt) || safeChargeCcActive(outputCurrent, iLimit);
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
         float V = arrayData[i].voltage;
         float I = arrayData[i].current;
-        float dV = V - prevV[i];
-        float dI = I - prevI[i];
-        float step;
-
-        if (cvPhase || ccPhase) {
-            // Shed power: move array voltage toward Voc (reduces boost output current).
-            step = CC_CV_BACKOFF_STEP;
-        } else if (fabsf(dV) < 1e-3f) {
-            // No voltage change: decide from current change alone.
-            if (fabsf(dI) < 1e-3f)      step = 0.0f;
-            else if (dI > 0.0f)         step = INCCOND_STEP;
-            else                        step = -INCCOND_STEP;
-        } else {
-            // Incremental conductance: at MPP, dI/dV == -I/V.
-            float cond  = I / V;
-            float dCond = dI / dV;
-            if (dCond > -cond + INCCOND_DEADBAND)      step = INCCOND_STEP;   // left of MPP
-            else if (dCond < -cond - INCCOND_DEADBAND) step = -INCCOND_STEP;  // right of MPP
-            else                                       step = 0.0f;          // at MPP
-        }
+        float step = safeChargeArrayStep(V, I, prevV[i], prevI[i], limiting);
 
         targetVoltage[i] = V + step;
         if (targetVoltage[i] <= 0.0f) targetVoltage[i] = 0.01f;
