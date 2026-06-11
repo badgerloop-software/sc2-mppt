@@ -17,15 +17,19 @@
   (`src/mppt.cpp`)
 - Tracks panel MPP via incremental conductance (`dI/dV` vs `-I/V`, with deadband).
 - **CV taper** at `battVolt >= 121.2V` (4.18 V/cell), **CC backoff** above
-  `min(BMS limit, 34A)`, **hard stop** (converters off) if boost disabled or
-  `battVolt >= 121.8V` (4.20 V/cell). Limits shed power by pushing array voltage
-  toward Voc.
+  `min(BMS limit, 20A MPPT cap, 34A fuse)`, **hard stop** (converters off) if
+  boost disabled or `battVolt >= 121.8V` (4.20 V/cell). Limits shed power by
+  pushing array voltage toward Voc.
 - No temperature cutoff (charge current is small vs. cell rating).
 
 **3. Battery-safety constants** (`include/const.h`)
 - New block derived from 29S10P INR21700-50S + 40A fuse: `V_BATT_MAX`, `V_BATT_CV`,
   `I_CHG_MAX_FUSE` (85% of fuse), plus tunables `INCCOND_STEP`, `INCCOND_DEADBAND`,
   `CC_CV_BACKOFF_STEP`. Centralized for easy tuning.
+- `I_CHG_MAX_MPPT` (**20A**) — MPPT charge-current operating cap. The pack fuse is
+  shared with regen (which also charges the pack), so the MPPT is held well under
+  the fuse to leave headroom for regen on top of charging. `effectiveChargeCurrentLimit()`
+  now returns the tightest of BMS limit, this MPPT cap, and the fuse ceiling.
 
 ### Per-board string configuration (2-board / 5-string setup)
 
@@ -69,13 +73,13 @@
 - Extracted the pure decision logic into `include/mppt_core.h` +
   `src/mppt_core.cpp` (no globals/timers/hardware; includes only `const.h`).
   `mppt.cpp` now calls these, so the tested code is the code that runs on the car.
-- 26 Unity tests run a desktop PV-parabola + battery simulation covering the
+- 27 Unity tests run a desktop PV-parabola + battery simulation covering the
   SafeCharge safety envelope: hard stop, CV/CC thresholds, current-limit
   selection (incl. zero-BMS gating and fuse-spec check), incremental-conductance
   direction (incl. the flat-voltage branch), the limiting override and CC/CV
   power-shedding, MPP convergence (asserted on captured power), and that pack
   voltage/charge current never breach their caps.
-- Run locally with `pio test -e native`. **26/26 passing.**
+- Run locally with `pio test -e native`. **27/27 passing.**
 - Note: this is a *logic/decision* simulation only — it does **not** model the
   converter/PID/PWM timing, so it is not a substitute for a bench test.
 

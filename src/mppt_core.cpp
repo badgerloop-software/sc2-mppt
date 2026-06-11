@@ -11,7 +11,12 @@ bool safeChargeHardStop(bool boostEnabled, float battVolt) {
 }
 
 float effectiveChargeCurrentLimit(float bmsLimit) {
-    return (I_CHG_MAX_FUSE < bmsLimit) ? I_CHG_MAX_FUSE : bmsLimit;
+    // Tightest of: BMS charge limit, MPPT operating cap (leaves regen headroom on
+    // the shared fuse), and the absolute fuse-derived ceiling.
+    float limit = bmsLimit;
+    if (I_CHG_MAX_MPPT < limit) limit = I_CHG_MAX_MPPT;
+    if (I_CHG_MAX_FUSE < limit) limit = I_CHG_MAX_FUSE;
+    return limit;
 }
 
 bool safeChargeCvActive(float battVolt) {

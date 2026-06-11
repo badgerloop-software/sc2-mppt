@@ -49,11 +49,12 @@ void test_hard_stop_when_boost_disabled(void) {
 // ---- Current limit selection ----
 
 void test_current_limit_takes_tighter_of_bms_and_fuse(void) {
-    // Huge BMS limit -> fuse-derived ceiling wins.
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, I_CHG_MAX_FUSE, effectiveChargeCurrentLimit(1000.0f));
+    // Huge BMS limit -> MPPT operating cap wins (tighter than the fuse ceiling).
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, I_CHG_MAX_MPPT, effectiveChargeCurrentLimit(1000.0f));
     // Small BMS limit wins.
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 5.0f, effectiveChargeCurrentLimit(5.0f));
-    // Fuse ceiling should itself be safely under the physical fuse.
+    // Ceilings must nest: MPPT cap < fuse-derived ceiling < physical fuse.
+    TEST_ASSERT_TRUE(I_CHG_MAX_MPPT < I_CHG_MAX_FUSE);
     TEST_ASSERT_TRUE(I_CHG_MAX_FUSE < PACK_FUSE_A);
 }
 
@@ -221,10 +222,16 @@ void test_po_reverses_with_negative_step(void) {
     TEST_ASSERT_EQUAL_FLOAT(0.5f, poNextStep(/*cur*/5.0f, /*old*/10.0f, /*step*/-0.5f));
 }
 
-// When the BMS limit exactly equals the fuse ceiling, neither is "tighter"; the
-// function returns the BMS value (they're numerically equal anyway).
-void test_current_limit_equal_bms_and_fuse(void) {
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, I_CHG_MAX_FUSE, effectiveChargeCurrentLimit(I_CHG_MAX_FUSE));
+// A BMS limit at/above the MPPT cap is clamped down to the MPPT cap.
+void test_current_limit_clamped_to_mppt_cap(void) {
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, I_CHG_MAX_MPPT, effectiveChargeCurrentLimit(I_CHG_MAX_FUSE));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, I_CHG_MAX_MPPT, effectiveChargeCurrentLimit(I_CHG_MAX_MPPT));
+}
+// The MPPT cap must leave real headroom under the shared fuse for regen current.
+void test_mppt_cap_leaves_regen_headroom(void) {
+    TEST_ASSERT_TRUE(I_CHG_MAX_MPPT <= 20.0f);
+    // At least 15A of fuse headroom remains above the MPPT charge cap for regen.
+    TEST_ASSERT_TRUE((PACK_FUSE_A - I_CHG_MAX_MPPT) >= 15.0f);
 }
 // A zero BMS limit must propagate: the BMS can fully gate charging.
 void test_current_limit_zero_bms_gates_charging(void) {
@@ -313,7 +320,8 @@ int main(int, char **) {
     RUN_TEST(test_safecharge_respects_current_limit);
     RUN_TEST(test_po_keeps_direction_on_equal_power);
     RUN_TEST(test_po_reverses_with_negative_step);
-    RUN_TEST(test_current_limit_equal_bms_and_fuse);
+    RUN_TEST(test_current_limit_clamped_to_mppt_cap);
+    RUN_TEST(test_mppt_cap_leaves_regen_headroom);
     RUN_TEST(test_current_limit_zero_bms_gates_charging);
     RUN_TEST(test_fuse_limit_matches_spec);
     RUN_TEST(test_ceiling_above_taper_knee);

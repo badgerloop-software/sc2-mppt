@@ -22,8 +22,9 @@ float poNextStep(float curPower, float oldPower, float stepSize);
 // the absolute voltage ceiling).
 bool safeChargeHardStop(bool boostEnabled, float battVolt);
 
-// Effective pack charge-current ceiling: the tighter of the BMS limit and the
-// fuse-derived limit.
+// Effective pack charge-current ceiling: the tightest of the BMS limit, the MPPT
+// operating cap (leaves regen headroom on the shared fuse), and the fuse-derived
+// limit.
 float effectiveChargeCurrentLimit(float bmsLimit);
 
 // Charge-phase detectors.

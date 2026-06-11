@@ -141,6 +141,11 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define CELL_V_CV_TARGET     4.18f   // CV regulation target (margin under absolute max)
 #define PACK_FUSE_A          40.0f   // pack fuse rating
 #define CHG_CURRENT_MARGIN   0.85f   // keep charge current this far under the fuse
+// MPPT charge-current operating cap. The pack fuse is shared with regen, which
+// also pushes current INTO the pack, so the MPPT must leave headroom underneath
+// the fuse for regen on top of charging. 20A MPPT + regen stays well under the
+// ~34A fuse-derived ceiling.
+#define I_CHG_MAX_MPPT       20.0f
 
 // Derived battery-side limits used by MPPT_ALGO_SAFE_CHARGE
 #define V_BATT_MAX     (PACK_SERIES_CELLS * CELL_V_CHG_MAX)    // ~121.8V -> hard stop
