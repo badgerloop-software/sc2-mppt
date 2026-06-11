@@ -210,6 +210,92 @@ void test_safecharge_respects_current_limit(void) {
     TEST_ASSERT_TRUE(settledMax <= iLimit * 1.15f);
 }
 
+// ---- Additional edge cases & invariants ----
+
+// P&O: equal power is not a loss, so direction is kept (curPower < oldPower is false).
+void test_po_keeps_direction_on_equal_power(void) {
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, poNextStep(/*cur*/7.0f, /*old*/7.0f, /*step*/0.5f));
+}
+// Reversal works regardless of the current step's sign.
+void test_po_reverses_with_negative_step(void) {
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, poNextStep(/*cur*/5.0f, /*old*/10.0f, /*step*/-0.5f));
+}
+
+// When the BMS limit exactly equals the fuse ceiling, neither is "tighter"; the
+// function returns the BMS value (they're numerically equal anyway).
+void test_current_limit_equal_bms_and_fuse(void) {
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, I_CHG_MAX_FUSE, effectiveChargeCurrentLimit(I_CHG_MAX_FUSE));
+}
+// A zero BMS limit must propagate: the BMS can fully gate charging.
+void test_current_limit_zero_bms_gates_charging(void) {
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, effectiveChargeCurrentLimit(0.0f));
+}
+// The fuse-derived ceiling matches the pack spec (85% of a 40 A fuse = 34 A).
+void test_fuse_limit_matches_spec(void) {
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, PACK_FUSE_A * CHG_CURRENT_MARGIN, I_CHG_MAX_FUSE);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 34.0f, I_CHG_MAX_FUSE);
+}
+
+// The absolute hard-stop ceiling must sit above the CV taper knee, or charging
+// could never enter CV before tripping the hard stop.
+void test_ceiling_above_taper_knee(void) {
+    TEST_ASSERT_TRUE(V_BATT_MAX > V_BATT_CV);
+}
+// Just under the ceiling (and at the CV knee) the converters stay live.
+void test_hard_stop_runs_below_ceiling(void) {
+    TEST_ASSERT_FALSE(safeChargeHardStop(true, V_BATT_MAX - 0.01f));
+    TEST_ASSERT_FALSE(safeChargeHardStop(true, V_BATT_CV)); // CV knee is below the ceiling
+}
+
+// IncCond "no voltage change" branch: decide direction from current change alone.
+void test_inccond_flat_voltage_rising_current_steps_up(void) {
+    // dV ~ 0, dI > 0 -> step up.
+    float step = incCondStep(/*V*/40.0f, /*I*/6.0f, /*prevV*/40.0f, /*prevI*/5.0f);
+    TEST_ASSERT_EQUAL_FLOAT(INCCOND_STEP, step);
+}
+void test_inccond_flat_voltage_falling_current_steps_down(void) {
+    float step = incCondStep(/*V*/40.0f, /*I*/5.0f, /*prevV*/40.0f, /*prevI*/6.0f);
+    TEST_ASSERT_EQUAL_FLOAT(-INCCOND_STEP, step);
+}
+void test_inccond_flat_voltage_flat_current_holds(void) {
+    float step = incCondStep(/*V*/40.0f, /*I*/5.0f, /*prevV*/40.0f, /*prevI*/5.0f);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, step);
+}
+
+// When a battery limit binds, the array step is forced to the backoff regardless
+// of where we are on the MPP curve (here, left of MPP where IncCond would step up).
+void test_arraystep_limiting_overrides_tracking(void) {
+    float V = 30.0f; // left of VMPP=40
+    float limitedStep = safeChargeArrayStep(V, pvCurrent(V), V - 1.0f, pvCurrent(V - 1.0f),
+                                            /*limiting*/true);
+    TEST_ASSERT_EQUAL_FLOAT(CC_CV_BACKOFF_STEP, limitedStep);
+}
+// With no limit binding, the array step is exactly the IncCond decision.
+void test_arraystep_not_limiting_equals_inccond(void) {
+    float V = 30.0f, prevV = 29.0f;
+    float expected = incCondStep(V, pvCurrent(V), prevV, pvCurrent(prevV));
+    float actual   = safeChargeArrayStep(V, pvCurrent(V), prevV, pvCurrent(prevV),
+                                         /*limiting*/false);
+    TEST_ASSERT_EQUAL_FLOAT(expected, actual);
+}
+
+// CC/CV backoff must actually shed power: repeatedly applying the limiting step
+// pushes V toward Voc and monotonically reduces delivered power.
+void test_cc_backoff_sheds_power(void) {
+    float V = VMPP;                 // start at peak power
+    float startPower = pvPower(V);
+    float prevPower = startPower;
+    for (int k = 0; k < 20; k++) {
+        float step = safeChargeArrayStep(V, pvCurrent(V), V, pvCurrent(V), /*limiting*/true);
+        V += step;
+        float p = pvPower(V);
+        TEST_ASSERT_TRUE(p <= prevPower + 1e-3f); // never increases
+        prevPower = p;
+    }
+    TEST_ASSERT_TRUE(V > VMPP);                 // moved toward Voc
+    TEST_ASSERT_TRUE(pvPower(V) < startPower);  // net power reduction
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_hard_stop_on_overvoltage);
@@ -225,5 +311,18 @@ int main(int, char **) {
     RUN_TEST(test_safecharge_converges_to_mpp);
     RUN_TEST(test_safecharge_caps_battery_voltage);
     RUN_TEST(test_safecharge_respects_current_limit);
+    RUN_TEST(test_po_keeps_direction_on_equal_power);
+    RUN_TEST(test_po_reverses_with_negative_step);
+    RUN_TEST(test_current_limit_equal_bms_and_fuse);
+    RUN_TEST(test_current_limit_zero_bms_gates_charging);
+    RUN_TEST(test_fuse_limit_matches_spec);
+    RUN_TEST(test_ceiling_above_taper_knee);
+    RUN_TEST(test_hard_stop_runs_below_ceiling);
+    RUN_TEST(test_inccond_flat_voltage_rising_current_steps_up);
+    RUN_TEST(test_inccond_flat_voltage_falling_current_steps_down);
+    RUN_TEST(test_inccond_flat_voltage_flat_current_holds);
+    RUN_TEST(test_arraystep_limiting_overrides_tracking);
+    RUN_TEST(test_arraystep_not_limiting_equals_inccond);
+    RUN_TEST(test_cc_backoff_sheds_power);
     return UNITY_END();
 }

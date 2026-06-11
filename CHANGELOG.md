@@ -69,11 +69,13 @@
 - Extracted the pure decision logic into `include/mppt_core.h` +
   `src/mppt_core.cpp` (no globals/timers/hardware; includes only `const.h`).
   `mppt.cpp` now calls these, so the tested code is the code that runs on the car.
-- 13 Unity tests run a desktop PV-parabola + battery simulation covering the
+- 26 Unity tests run a desktop PV-parabola + battery simulation covering the
   SafeCharge safety envelope: hard stop, CV/CC thresholds, current-limit
-  selection, incremental-conductance direction, MPP convergence (asserted on
-  captured power), and that pack voltage/charge current never breach their caps.
-- Run locally with `pio test -e native`. **13/13 passing.**
+  selection (incl. zero-BMS gating and fuse-spec check), incremental-conductance
+  direction (incl. the flat-voltage branch), the limiting override and CC/CV
+  power-shedding, MPP convergence (asserted on captured power), and that pack
+  voltage/charge current never breach their caps.
+- Run locally with `pio test -e native`. **26/26 passing.**
 - Note: this is a *logic/decision* simulation only — it does **not** model the
   converter/PID/PWM timing, so it is not a substitute for a bench test.
 
