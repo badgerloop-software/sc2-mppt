@@ -63,9 +63,36 @@
   architecture decision.
 - Stale `// offset by 3*i` comment in `canMppt.cpp` (code correctly uses `5*i`).
 
+### Testing & CI
+
+**8. Native unit-test harness** (`test/test_mppt_core/`, `[env:native]`)
+- Extracted the pure decision logic into `include/mppt_core.h` +
+  `src/mppt_core.cpp` (no globals/timers/hardware; includes only `const.h`).
+  `mppt.cpp` now calls these, so the tested code is the code that runs on the car.
+- 13 Unity tests run a desktop PV-parabola + battery simulation covering the
+  SafeCharge safety envelope: hard stop, CV/CC thresholds, current-limit
+  selection, incremental-conductance direction, MPP convergence (asserted on
+  captured power), and that pack voltage/charge current never breach their caps.
+- Run locally with `pio test -e native`. **13/13 passing.**
+- Note: this is a *logic/decision* simulation only — it does **not** model the
+  converter/PID/PWM timing, so it is not a substitute for a bench test.
+
+**9. GitHub Actions CI** (`.github/workflows/native-tests.yml`)
+- Runs `pio test -e native` automatically on every push and pull request.
+
+**Dependencies — what other people need.**
+- *To run the native tests* they need only a host C++ compiler (`gcc`/`g++`) and
+  PlatformIO. On Linux/macOS gcc is already present; on Windows install a host
+  GCC (e.g. WinLibs via `winget install BrechtSanders.WinLibs.POSIX.UCRT`) and
+  reopen the terminal. The CI runner has gcc preinstalled, so no extra setup.
+- The native tests do **not** need the ARM toolchain, the Arduino framework, or
+  the `embedded-pio` submodule (they compile only `mppt_core.cpp` + `const.h`).
+- *To build/flash the board firmware* the `embedded-pio` submodule is still
+  required (see Notes).
+
 ### Notes
 
-- `embedded-pio` submodule must be initialized to build
-  (`git submodule update --init`).
+- `embedded-pio` submodule must be initialized to build the **firmware**
+  (`git submodule update --init`). Not needed for the native tests.
 - Algorithm 2 is **not bench-tested** — constants/steps need hardware validation
   before charging a real pack.

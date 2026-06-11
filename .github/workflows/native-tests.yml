@@ -1,0 +1,33 @@
+name: Native unit tests
+
+# Runs the desktop simulation of the MPPT / charge decision logic on every push
+# and pull request. These tests only compile the pure logic (src/mppt_core.cpp +
+# include/const.h), so they need a host C++ compiler and PlatformIO -- no STM32
+# toolchain, no Arduino framework, and no embedded-pio submodule.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  native-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        # Do NOT fetch submodules: the native tests don't use embedded-pio, and
+        # that submodule is an SSH URL the runner can't authenticate to.
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      # gcc/g++ are preinstalled on ubuntu-latest, so no compiler setup needed.
+      - name: Run native unit tests
+        run: pio test -e native
