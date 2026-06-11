@@ -17,7 +17,7 @@
 // 1 for human readable mode
 // 2 for logging/csv mode
 // 3 for showing array 0 values only
-#define DEBUG_PRINT 1
+#define DEBUG_PRINT 3
 
 
 
@@ -68,7 +68,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // --------------- PID/PWM CONSTANTS -----------------
 // Loop parameters
 #define P_TERM -0.7 //-3.65 // -2.9
-#define I_TERM -0.2 // -0.06 // -0.1
+#define I_TERM 0.2 // -0.06 // -0.1
 #define D_TERM 0 //-0.012 // 0
 
 // Input range
@@ -88,7 +88,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define INIT_VOLT 9
 
 // initial step size for MPPT updates
-#define INIT_VOLT_STEP 0.5
+#define INIT_VOLT_STEP -0.5
 
 // Maximum voltage the algo loop can target (want safe offset under danger V_MAX)
 #define V_TARGET_MAX 105

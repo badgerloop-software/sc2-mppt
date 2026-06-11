@@ -39,7 +39,7 @@ volatile float battVolt; // Battery voltage pin and storage
 volatile ChargeMode chargeMode = ChargeMode::CONST_CURR; // Charging algorithm mode
 
 // Pack charge current limit
-volatile float packSOC = 100;
+volatile float packSOC = 50; // emulate partial SOC to force MPPT mode without CAN board; revert to 100 when real board connected
 volatile float packChargeCurrentLimit = 10;
 volatile float packCurrent = 0; 
 volatile float outputCurrent = 0; 
@@ -72,9 +72,11 @@ void updateData() {
         totalPower += arrayData[i].curPower;
     }
 
+    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
+
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            // turn off boost converters 
+        if (!boostEnabled || arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+            // turn off boost converters
             arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
             arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
@@ -83,7 +85,6 @@ void updateData() {
         }
     }
 
-    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
     battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.

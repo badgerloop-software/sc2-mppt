@@ -76,6 +76,7 @@ void loop() {
 
   #endif
     if (!past_boostenabled && boostEnabled) {
+      setVoltOut(INIT_VOLT);
       resetPID();
     }
     past_boostenabled = boostEnabled;
