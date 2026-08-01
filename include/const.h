@@ -17,11 +17,20 @@
 // 1 for human readable mode
 // 2 for logging/csv mode
 // 3 for showing array 0 values only
-#define DEBUG_PRINT 1
+#define DEBUG_PRINT 3
 
 
 
 // ------------- IO INPUT CONSTANTS -------------
+// ===========================================================================
+// PER-BOARD CONFIG: number of solar strings wired to THIS board.
+// The array is split across two MPPT boards via the relay board:
+//   - one board drives 2 strings  -> set NUM_ARRAYS to 2
+//   - one board drives 3 strings  -> set NUM_ARRAYS to 3
+// This is the ONLY value that needs to change between the two boards. All pin
+// tables, control arrays, and loops below size themselves from it. Valid range
+// is 1..3 (the board exposes 3 voltage/current/PWM channels).
+// ===========================================================================
 #define NUM_ARRAYS 3
 
 // Analog input modifiers (derived from circuitry)
@@ -68,7 +77,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // --------------- PID/PWM CONSTANTS -----------------
 // Loop parameters
 #define P_TERM -0.7 //-3.65 // -2.9
-#define I_TERM -0.2 // -0.06 // -0.1
+#define I_TERM 0.2 // -0.06 // -0.1
 #define D_TERM 0 //-0.012 // 0
 
 // Input range
@@ -88,7 +97,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define INIT_VOLT 9
 
 // initial step size for MPPT updates
-#define INIT_VOLT_STEP 0.5
+#define INIT_VOLT_STEP -0.5
 
 // Maximum voltage the algo loop can target (want safe offset under danger V_MAX)
 #define V_TARGET_MAX 105
@@ -115,7 +124,35 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 
 
 
-// How fast to transmit data over CAN in ms (and debug prints if on) 
+// ------------- ALGORITHM SELECTION -------------
+// Selects which outer-loop charge algorithm mpptUpdate() runs.
+//   MPPT_ALGO_PO          - original Perturb & Observe (existing, tested)
+//   MPPT_ALGO_SAFE_CHARGE - Incremental Conductance MPPT with CC-CV battery limiting
+// Default to the known-good P&O; flip this macro (or call setMpptAlgo() at runtime)
+// to switch.
+#define MPPT_ALGO_PO          0
+#define MPPT_ALGO_SAFE_CHARGE 1
+#define DEFAULT_MPPT_ALGO     MPPT_ALGO_SAFE_CHARGE
+
+// ------------- BATTERY PACK: 29S10P Samsung INR21700-50S -------------
+#define PACK_SERIES_CELLS    29
+#define PACK_PARALLEL_CELLS  10
+#define CELL_V_CHG_MAX       4.20f   // absolute per-cell charge ceiling
+#define CELL_V_CV_TARGET     4.18f   // CV regulation target (margin under absolute max)
+#define PACK_FUSE_A          40.0f   // pack fuse rating
+#define CHG_CURRENT_MARGIN   0.85f   // keep charge current this far under the fuse
+
+// Derived battery-side limits used by MPPT_ALGO_SAFE_CHARGE
+#define V_BATT_MAX     118.8f //(PACK_SERIES_CELLS * CELL_V_CHG_MAX)    // ~121.8V -> hard stop
+#define V_BATT_CV      118.2f //(PACK_SERIES_CELLS * CELL_V_CV_TARGET)  // ~121.2V -> CV taper start
+#define I_CHG_MAX_FUSE (PACK_FUSE_A * CHG_CURRENT_MARGIN)      // ~34A fuse-derived ceiling
+
+// Safe-charge stepping (volts of array-voltage setpoint per 1s outer-loop tick)
+#define INCCOND_STEP        0.3f   // MPPT perturbation step
+#define INCCOND_DEADBAND    0.05f  // |dI/dV + I/V| band treated as "at MPP"
+#define CC_CV_BACKOFF_STEP  0.5f   // push array voltage toward Voc to shed power when limiting
+
+// How fast to transmit data over CAN in ms (and debug prints if on)
 #define DATA_SEND_PERIOD 50
 
 // Duration undervoltage fault reset asserted on command 

@@ -1,4 +1,5 @@
 #include "IOManagement.h"
+#include "mppt.h"
 #include <array>
 
 // Solar array voltage, current, and PWM pins (controlled by PID) and storage variable
@@ -13,25 +14,31 @@ struct ArrayPins {
     HardwareTimer *pwmTimer;        // timer to set PWM output 
 };
 
+// One entry per string. Entries 2 and 3 compile in only when NUM_ARRAYS is large
+// enough, so a 2-string board needs no edits here beyond setting NUM_ARRAYS.
 ArrayPins arrayPins[NUM_ARRAYS] = {
     {
-        VOLT_CHANNEL_1, 
-        INA281Driver(CURR_PIN_1, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
+        VOLT_CHANNEL_1,
+        INA281Driver(CURR_PIN_1, INA_SHUNT_R),
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD),
         PWM_OUT_1
     },
+#if NUM_ARRAYS >= 2
     {
-        VOLT_CHANNEL_2, 
-        INA281Driver(CURR_PIN_2, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
+        VOLT_CHANNEL_2,
+        INA281Driver(CURR_PIN_2, INA_SHUNT_R),
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD),
         PWM_OUT_2
     },
+#endif
+#if NUM_ARRAYS >= 3
     {
-        VOLT_CHANNEL_3, 
-        INA281Driver(CURR_PIN_3, INA_SHUNT_R), 
-        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD), 
+        VOLT_CHANNEL_3,
+        INA281Driver(CURR_PIN_3, INA_SHUNT_R),
+        PID(P_TERM, I_TERM, D_TERM, PID_UPDATE_PERIOD),
         PWM_OUT_3
     }
+#endif
 };
 
 volatile bool boostEnabled; // Enables PWM-Voltage converters
@@ -39,7 +46,7 @@ volatile float battVolt; // Battery voltage pin and storage
 volatile ChargeMode chargeMode = ChargeMode::CONST_CURR; // Charging algorithm mode
 
 // Pack charge current limit
-volatile float packSOC = 100;
+volatile float packSOC = 50; // emulate partial SOC to force MPPT mode without CAN board; revert to 100 when real board connected
 volatile float packChargeCurrentLimit = 10;
 volatile float packCurrent = 0; 
 volatile float outputCurrent = 0; 
@@ -57,6 +64,7 @@ STM32TimerInterrupt dataUpdater(TIM2);
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
     float totalPower = 0;
+    static bool lastBoostEnabled = false; // Added to track rising edge of boost enable for soft-start
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // Update temperature mux selection at start for time to update, then read at end
@@ -72,9 +80,21 @@ void updateData() {
         totalPower += arrayData[i].curPower;
     }
 
+    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
+
+    // UPDATED: Soft-start to prevent massive inrush current and brownouts
+    if (boostEnabled && !lastBoostEnabled) {
+        for (int i = 0; i < NUM_ARRAYS; i++) {
+            targetVoltage[i] = arrayData[i].voltage - 0.5f; // Seed target to current physical voltage
+            setArrayVoltOut(targetVoltage[i], i);    // Tell PID the new target
+            resetArrayPID(i);                        // Clear any accumulated PID windup
+        }
+    }
+    lastBoostEnabled = boostEnabled;
+
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        if (arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
-            // turn off boost converters 
+        if (!boostEnabled || arrayData[i].voltage > V_MAX || battVolt >= V_BATT_MAX || chargeMode == ChargeMode::CONST_CURR) {
+            // turn off boost converters
             arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
             arrayPins[i].pidController.setProcessValue(arrayData[i].voltage); // real world value, input
@@ -83,18 +103,27 @@ void updateData() {
         }
     }
 
-    boostEnabled = digitalRead(BOOST_ENABLED_PIN);
     battVolt = readADC(BATTERY_VOLT_CHANNEL) * BATT_V_SCALE;
 
     outputCurrent = totalPower / battVolt; // only used in debug printouts now.
 
-    // Failed to program CONST_CURR_THRESH in time, change mode based on SOC instead
-    if (packSOC < 98) chargeMode = ChargeMode::MPPT;
-    else chargeMode = ChargeMode::CONST_CURR;
+    // P&O uses SOC to pick the mode; SafeCharge manages chargeMode itself.
+    if (activeAlgo == MpptAlgo::PerturbObserve) {
+        // Failed to program CONST_CURR_THRESH in time, change mode based on SOC instead
+        if (packSOC < 98) chargeMode = ChargeMode::MPPT;
+        else chargeMode = ChargeMode::CONST_CURR;
+    }
     /*
     if (packCurrent > CONST_CURR_THRESH) chargeMode = ChargeMode::CONST_CURR;
     else if (packCurrent < MPPT_THRESH) chargeMode = ChargeMode::MPPT;
     */
+
+    // UPDATED: Added noise floor to prevent divide-by-zero math explosions
+    if (battVolt > 2.0f) {
+        outputCurrent = totalPower / battVolt; 
+    } else {
+        outputCurrent = 0.0f;
+    }
 }
 
 void initData() {
