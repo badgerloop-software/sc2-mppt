@@ -132,7 +132,7 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 // to switch.
 #define MPPT_ALGO_PO          0
 #define MPPT_ALGO_SAFE_CHARGE 1
-#define DEFAULT_MPPT_ALGO     MPPT_ALGO_PO
+#define DEFAULT_MPPT_ALGO     MPPT_ALGO_SAFE_CHARGE
 
 // ------------- BATTERY PACK: 29S10P Samsung INR21700-50S -------------
 #define PACK_SERIES_CELLS    29
@@ -143,8 +143,8 @@ constexpr float BATT_V_SCALE = 3.325 * 101;
 #define CHG_CURRENT_MARGIN   0.85f   // keep charge current this far under the fuse
 
 // Derived battery-side limits used by MPPT_ALGO_SAFE_CHARGE
-#define V_BATT_MAX     (PACK_SERIES_CELLS * CELL_V_CHG_MAX)    // ~121.8V -> hard stop
-#define V_BATT_CV      (PACK_SERIES_CELLS * CELL_V_CV_TARGET)  // ~121.2V -> CV taper start
+#define V_BATT_MAX     118.8f //(PACK_SERIES_CELLS * CELL_V_CHG_MAX)    // ~121.8V -> hard stop
+#define V_BATT_CV      118.2f //(PACK_SERIES_CELLS * CELL_V_CV_TARGET)  // ~121.2V -> CV taper start
 #define I_CHG_MAX_FUSE (PACK_FUSE_A * CHG_CURRENT_MARGIN)      // ~34A fuse-derived ceiling
 
 // Safe-charge stepping (volts of array-voltage setpoint per 1s outer-loop tick)

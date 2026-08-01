@@ -29,7 +29,7 @@ void debugPrint() {
     }
     float outputCurr = totalInputPower / battVolt;
     printf("Output Current: %f\n", outputCurr);
-}
+}   
 #elif DEBUG_PRINT == 2
 void debugPrint() {
     for (int i = 0; i < NUM_ARRAYS; i++) {
@@ -40,14 +40,36 @@ void debugPrint() {
 #elif DEBUG_PRINT == 3
 // array 0 printout only
 void debugPrint() {
-    printf("V: %5.2f || targetV_C: %5.2f || I: %5.2f || Out_I: %5.2f || P: %5.2f || PWM: %5.2f || targetV: %5.2f || BoostEn: %i || battV: %5.2f || Mode: %s || errorV: %5.2f\n",
-            arrayData[0].voltage, targetVoltage_C[0], arrayData[0].current, outputCurrent, arrayData[0].curPower, arrayData[0].dutyCycle,
-            targetVoltage[0], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[0] - arrayData[0].voltage);
+    // printf("V: %5.2f || targetV_C: %5.2f || I: %5.2f || Out_I: %5.2f || P: %5.2f || PWM: %5.2f || targetV: %5.2f || BoostEn: %i || battV: %5.2f || Mode: %s || errorV: %5.2f\n",
+    //         arrayData[0].voltage, targetVoltage_C[0], arrayData[0].current, outputCurrent, arrayData[0].curPower, arrayData[0].dutyCycle,
+    //         targetVoltage[0], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[0] - arrayData[0].voltage);
+
+    for (int i = 0; i < NUM_ARRAYS; i++) {
+        printf("Arr %d -> V: %5.2f || targetV_C: %5.2f || I: %5.2f || Out_I: %5.2f || P: %5.2f || PWM: %5.2f || targetV: %5.2f || BoostEn: %i || battV: %5.2f || Mode: %s || errorV: %5.2f\n",
+                i+1, arrayData[i].voltage, targetVoltage_C[i], arrayData[i].current, outputCurrent, arrayData[i].curPower, arrayData[i].dutyCycle,
+                targetVoltage[i], boostEnabled, battVolt, (bool)chargeMode ? "MPPT" : "Current", targetVoltage[i] - arrayData[i].voltage);
+    }
+    printf("----------------------------------------------------------------------------------------------------------\n");
 }
 #endif
 
 
 void setup() {
+
+  // FIRMWARE FIX FOR THE FLOATING PINS:
+  // Before doing ANY delays, instantly configure the PWM pins as outputs 
+  // and force them LOW. This mimics the old firmware's rapid boot speed,
+  // preventing the gate drivers from seeing a floating signal and saturating the inductor.
+
+  pinMode(PWM_OUT_1, OUTPUT); digitalWrite(PWM_OUT_1, LOW);
+  pinMode(PWM_OUT_2, OUTPUT); digitalWrite(PWM_OUT_2, LOW);
+  pinMode(PWM_OUT_3, OUTPUT); digitalWrite(PWM_OUT_3, LOW);
+
+  pinMode(DISCHARGE_CAPS_PIN, OUTPUT); digitalWrite(DISCHARGE_CAPS_PIN, HIGH);
+  pinMode(OV_FAULT_RST_PIN, OUTPUT); digitalWrite(OV_FAULT_RST_PIN, LOW);
+  // 1. HARDWARE STABILIZATION DELAY
+  // Wait 2 seconds before doing ANYTHING. This gives the system to fully stabilize, and prevent brownouts 
+  // delay(2000);
   #if DEBUG_PRINT
     int counter = 0;
   #endif
@@ -73,13 +95,29 @@ void loop() {
       counter = 0;
     }
     counter++;
-
   #endif
+
+  // 2. CONTINUOUS PID SYNCHRONIZATION
+    // When boost is off, constantly lock the target voltage to reality. 
+    // This guarantees that the exact millisecond the switch is flipped ON, 
+    // the PID error is exactly 0.00. This prevents the initial massive 72% PWM surge 
+    // that causes the inductor to crackle, saturate, and EMI-crash the MCU.
+
+  // if (!boostEnabled) {
+  //       for (int i = 0; i < NUM_ARRAYS; i++) {
+  //           targetVoltage[i] = arrayData[i].voltage;
+  //       }
+  //       resetPID();
+  //   }
+  /*
+    #endif
     if (!past_boostenabled && boostEnabled) {
       setVoltOut(INIT_VOLT);
       resetPID();
     }
     past_boostenabled = boostEnabled;
+  */
+  
 
 
     canBus.sendMPPTData();

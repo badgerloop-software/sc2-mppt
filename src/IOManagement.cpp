@@ -64,6 +64,7 @@ STM32TimerInterrupt dataUpdater(TIM2);
 // Updates arrayData with new input values and PWM outputs based on PID loop
 void updateData() {
     float totalPower = 0;
+    static bool lastBoostEnabled = false; // Added to track rising edge of boost enable for soft-start
 
     for (int i = 0; i < NUM_ARRAYS; i++) {
         // Update temperature mux selection at start for time to update, then read at end
@@ -81,8 +82,18 @@ void updateData() {
 
     boostEnabled = digitalRead(BOOST_ENABLED_PIN);
 
+    // UPDATED: Soft-start to prevent massive inrush current and brownouts
+    if (boostEnabled && !lastBoostEnabled) {
+        for (int i = 0; i < NUM_ARRAYS; i++) {
+            targetVoltage[i] = arrayData[i].voltage - 0.5f; // Seed target to current physical voltage
+            setArrayVoltOut(targetVoltage[i], i);    // Tell PID the new target
+            resetArrayPID(i);                        // Clear any accumulated PID windup
+        }
+    }
+    lastBoostEnabled = boostEnabled;
+
     for (int i = 0; i < NUM_ARRAYS; i++) {
-        if (!boostEnabled || arrayData[i].voltage > V_MAX || chargeMode == ChargeMode::CONST_CURR) {
+        if (!boostEnabled || arrayData[i].voltage > V_MAX || battVolt >= V_BATT_MAX || chargeMode == ChargeMode::CONST_CURR) {
             // turn off boost converters
             arrayPins[i].pwmTimer->setPWM(arrayPins[i].channel, arrayPins[i].pwmPin, PWM_FREQ, 0);
         } else {
@@ -106,6 +117,13 @@ void updateData() {
     if (packCurrent > CONST_CURR_THRESH) chargeMode = ChargeMode::CONST_CURR;
     else if (packCurrent < MPPT_THRESH) chargeMode = ChargeMode::MPPT;
     */
+
+    // UPDATED: Added noise floor to prevent divide-by-zero math explosions
+    if (battVolt > 2.0f) {
+        outputCurrent = totalPower / battVolt; 
+    } else {
+        outputCurrent = 0.0f;
+    }
 }
 
 void initData() {

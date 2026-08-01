@@ -173,7 +173,7 @@ static void mpptUpdateSafeCharge() {
             else                                       step = 0.0f;          // at MPP
         }
 
-        targetVoltage[i] = V + step;
+        targetVoltage[i] += step;
         if (targetVoltage[i] <= 0.0f) targetVoltage[i] = 0.01f;
         setArrayVoltOut(targetVoltage[i], i); // clamped to V_TARGET_MAX inside
 
@@ -196,9 +196,14 @@ void initMPPT() {
         targetVoltage[i] = INIT_VOLT;
         targetVoltage_C[i] = INIT_VOLT;
     }
+
+
+    
     if (mpptUpdater.attachInterruptInterval(MPPT_UPDATE_PERIOD, mpptUpdate)) {
         printf("starting MPPT timer\n");
     } else {
         printf("ERROR: couldn't start MPPT timer\n");
     }
+    
+    
 }
