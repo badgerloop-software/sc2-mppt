@@ -4,11 +4,6 @@
 
 #include "debug.h"
 
-// Who writes what:
-//   mpptUpdate (timer) -> targetVoltage / targetVoltage_C, chargeMode (SafeCharge)
-//   io_management      -> reads targets via setArrayVoltOut; may seed targetVoltage on boost edge
-//   CAN                -> pack limits used by the algo
-
 // ------------- GLOBALS -------------
 volatile float targetVoltage[NUM_ARRAYS] = {0};
 volatile float targetVoltage_C[NUM_ARRAYS] = {0};

@@ -13,7 +13,6 @@ void debugError(const char* msg);
 
 #else
 
-// compiled out when SC2_DEBUG is 0
 inline void debugInit() {}
 inline void debugUpdate() {}
 inline void debugError(const char*) {}

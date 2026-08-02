@@ -3,11 +3,6 @@
 #include "debug.h"
 #include "mppt.h"
 
-// Who writes what:
-//   updateData (timer) -> arrayData, battVolt, boostEnabled, outputCurrent, chargeMode (P&O only)
-//   CAN / mppt      -> packSOC, packCurrent, packChargeCurrentLimit, chargeMode (SafeCharge), targets
-//   main            -> nothing here (just starts timers via initData)
-
 // ------------- GLOBALS -------------
 volatile ArrayData arrayData[NUM_ARRAYS];
 volatile bool boostEnabled;
