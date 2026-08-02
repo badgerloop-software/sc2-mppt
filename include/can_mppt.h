@@ -6,7 +6,7 @@
 
 // ------------- CLASS -------------
 
-// IDs / DLCs from embedded-pio/can_ids.h (SC2_CAN_*)
+// IDs / DLCs from embedded-pio/can_ids.h (CAN_*)
 class CanMppt : public CANManager {
    public:
     CanMppt(CAN_TypeDef* canPort, CAN_PINS pins, int frequency = DEFAULT_CAN_FREQ);
