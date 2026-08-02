@@ -1,8 +1,6 @@
 #ifndef __BOARD_CONFIG_H__
 #define __BOARD_CONFIG_H__
 
-// all board constants so they are easy to change
-
 // ------------- TIMING -------------
 #define IO_UPDATE_PERIOD 100000                                   // us
 #define PID_UPDATE_PERIOD ((float)IO_UPDATE_PERIOD / 1000000.0f)  // PID interval is in seconds
