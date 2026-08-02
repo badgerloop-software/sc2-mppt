@@ -42,12 +42,12 @@ extern volatile float outputCurrent;           // A, into battery
 
 // ------------- FUNCTIONS -------------
 
-void initData();
-void resetPID();
+void initData();                                 // start IO timer -> arrayData / pack reads
+void resetPID();                                 // all arrays
 void resetArrayPID(uint8_t array);
-void setVoltOut(float voltage);                  // clamped to V_TARGET_MAX
-void setArrayVoltOut(float voltage, uint8_t array);
-void clearOVFaultReset(uint8_t value);           // auto-clears after OV_FAULT_RST_PERIOD
-void setCapDischarge(uint8_t value);
+void setVoltOut(float voltage);                  // all arrays, clamped to V_TARGET_MAX
+void setArrayVoltOut(float voltage, uint8_t array);  // clamped to V_TARGET_MAX
+void clearOVFaultReset(uint8_t value);           // held for OV_FAULT_RST_PERIOD then released
+void setCapDischarge(uint8_t value);             // discharge output caps through resistor path
 
 #endif  // __IO_MANAGEMENT_H__

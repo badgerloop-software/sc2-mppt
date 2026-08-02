@@ -16,7 +16,7 @@ extern volatile MpptAlgo activeAlgo;
 
 // ------------- FUNCTIONS -------------
 
-void setMpptAlgo(MpptAlgo algo);
-void initMppt();
+void setMpptAlgo(MpptAlgo algo);  // switches algo and resets PID
+void initMppt();                  // start MPPT timer at MPPT_UPDATE_PERIOD
 
 #endif  // __MPPT_H__
