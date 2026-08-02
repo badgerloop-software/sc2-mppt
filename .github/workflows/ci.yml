@@ -12,7 +12,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # SC2_CI_TOKEN: PAT with read on private org repos (embedded-pio + boards).
+          # Or enable org Actions access to other private repositories.
+          token: ${{ secrets.SC2_CI_TOKEN || github.token }}
+
+      - name: Init private submodules over HTTPS
+        env:
+          TOKEN: ${{ secrets.SC2_CI_TOKEN || github.token }}
+        run: |
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "git@github.com:"
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
