@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [restructuring/ci, restructuring, main]
+    branches: [restructuring/ci, restructuring/firmware, main]
   pull_request:
-    branches: [restructuring/ci, restructuring, main]
+    branches: [restructuring/ci, restructuring/firmware, main]
 
 jobs:
   build:
