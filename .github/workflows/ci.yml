@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [restructuring/ci, restructuring, main]
+  pull_request:
+    branches: [restructuring/ci, restructuring, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PlatformIO
+        run: pip install -U platformio
+      - name: Build firmware
+        run: pio run
+      - name: CAN contract tests (from embedded-pio)
+        working-directory: embedded-pio/tests
+        run: |
+          pip install -r requirements.txt
+          pytest -q
